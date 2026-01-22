@@ -8,7 +8,7 @@
 
 It tracks how many resources you have in your inventory and in your Ender Chest. 
 
-I made alternatives have a _meh_ HUD, and don't support hypixel's new punch to deposit feature.
+I made thie because the alternatives have _meh_ HUDs, and don't support hypixel's new punch to deposit feature.
 
 If you run into issues or have suggestions, feel free to open an issue on [GitHub](https://github.com/bewf/Mint/issues).
 
