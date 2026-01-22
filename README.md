@@ -1,8 +1,9 @@
 # Mint
 
-<p align="center">
-  <img src="https://github.com/bewf/Mint/raw/main/GitAssets/minticon.png" width="220">
-</p>
+<img src="https://github.com/bewf/Mint/raw/main/GitAssets/minticon.png"
+     width="140"
+     align="right"
+     style="margin-left: 28px;" />
 
 **Mint** is a client-side Bedwars resource tracker for Minecraft.
 
@@ -33,6 +34,7 @@ If you run into issues or have suggestions, feel free to open an issue on [GitHu
 ---
 
 <p align="center">
+  <img src="https://github.com/bewf/Mint/raw/main/GitAssets/MintExampleHud.png" width="520"><br>
   <sub><em>Mint HUD example (customized layout).</em></sub>
 </p>
 
