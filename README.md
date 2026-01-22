@@ -34,11 +34,10 @@ If you run into issues or have suggestions, feel free to open an issue on [GitHu
 ---
 
 <p align="center">
-  <img src="https://github.com/bewf/Mint/raw/main/GitAssets/MintExampleHud.png" width="520"><br>
+  <img src="https://github.com/bewf/Mint/raw/main/GitAssets/MintExampleHudSky.png" width="520"><br>
   <sub><em>Mint HUD example (customized layout).</em></sub>
 </p>
 
 ---
 
 ##### Code licensed under ARR. Unmodified redistribution is permitted with credit. See the full license on GitHub for details.
-v
