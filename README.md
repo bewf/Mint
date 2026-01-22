@@ -40,4 +40,5 @@ If you run into issues or have suggestions, feel free to open an issue on [GitHu
 
 ---
 
-##### Code licensed under ARR. Unmodified redistribution is permitted with credit. See the full license on GitHub for details.
+##### Code licensed under [ARR](https://github.com/bewf/mint/blob/main/LICENSE.md). Unmodified redistribution is permitted with credit. See the [full license](https://github.com/bewf/mint/blob/main/LICENSE.md) on GitHub for details.
+
