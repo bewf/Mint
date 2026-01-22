@@ -1,0 +1,11 @@
+/build/
+/.gradle/
+/run/
+*.iml
+.idea/
+src/.idea/
+LICENSE-TEMPLATE
+*.log
+runClient*.log
+gradle_fail.log
+META-INF/

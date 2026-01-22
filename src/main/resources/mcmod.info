@@ -1,0 +1,11 @@
+[
+  {
+    "modid": "mint",
+    "name": "Mint",
+    "description": "Bedwars resource tracker",
+    "logoFile": "assets/mint/minticon.png",
+    "version": "1.0.0",
+    "mcversion": "1.8.9",
+    "authorList": ["bewf"]
+  }
+]
