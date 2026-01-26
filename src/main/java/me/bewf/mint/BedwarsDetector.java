@@ -14,12 +14,7 @@ public class BedwarsDetector {
 
     public static boolean isInHypixelBedwars() {
         Minecraft mc = Minecraft.getMinecraft();
-
-        if (mc.getCurrentServerData() == null || mc.getCurrentServerData().serverIP == null) return false;
-        String ip = mc.getCurrentServerData().serverIP.toLowerCase();
-        if (!ip.contains("hypixel")) return false;
-
-        if (mc.theWorld == null || mc.theWorld.getScoreboard() == null) return false;
+        if (mc == null || mc.theWorld == null || mc.theWorld.getScoreboard() == null) return false;
 
         Scoreboard sb = mc.theWorld.getScoreboard();
         ScoreObjective sidebar = sb.getObjectiveInDisplaySlot(1);
@@ -28,28 +23,54 @@ public class BedwarsDetector {
         String title = clean(sidebar.getDisplayName()).toUpperCase();
         List<String> lines = getSidebarLines(sb, sidebar);
 
-        // Normal Bedwars (most reliable signal is the title)
-        if (title.contains("BED WARS") || title.contains("BEDWARS")) {
+        // Hypixel fast-path (keeps existing behavior, but doesn't block other servers)
+        if (isHypixel(mc) && isBedwarsText(title, lines)) {
             return true;
         }
 
-        // Duels variants sometimes still use BED WARS title, but if it ever changes,
-        // this catches it from the sidebar content.
+        // Any-server fallback: if the scoreboard looks like Bedwars / Bedfight, treat it as active
+        return isBedwarsText(title, lines);
+    }
+
+    private static boolean isHypixel(Minecraft mc) {
+        try {
+            if (mc.getCurrentServerData() == null || mc.getCurrentServerData().serverIP == null) return false;
+            String ip = mc.getCurrentServerData().serverIP.toLowerCase();
+            return ip.contains("hypixel");
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private static boolean isBedwarsText(String title, List<String> lines) {
+        String t = title == null ? "" : title;
+        if (containsBedMode(t)) return true;
+
         for (String line : lines) {
             String u = line.toUpperCase();
 
-            // Matches:
-            // "Mode: Bed Wars Duel"
-            // "Mode: Bed Rush Duel"
-            if (u.contains("MODE:") && u.contains("DUEL") && (u.contains("BED WARS") || u.contains("BEDWARS") || u.contains("BED RUSH") || u.contains("BEDRUSH"))) {
-                return true;
-            }
+            // catches "Mode: Bed Wars Duel" / "Mode: Bed Rush Duel" / etc
+            if (u.contains("MODE:") && u.contains("DUEL") && containsBedMode(u)) return true;
 
-            // Extra safety: some layouts might omit "Mode:" but still show the mode text
-            if ((u.contains("BED WARS DUEL") || u.contains("BEDWARS DUEL") || u.contains("BED RUSH DUEL") || u.contains("BEDRUSH DUEL"))) {
-                return true;
-            }
+            if (containsBedMode(u)) return true;
         }
+
+        return false;
+    }
+
+    private static boolean containsBedMode(String s) {
+        if (s == null) return false;
+
+        // common variants
+        if (s.contains("BEDWARS")) return true;
+        if (s.contains("BED WARS")) return true;
+
+        if (s.contains("BEDFIGHT")) return true;
+        if (s.contains("BED FIGHT")) return true;
+
+        // some servers write "BED-WARS" or other separators
+        if (s.contains("BED-WARS")) return true;
+        if (s.contains("BED-FIGHT")) return true;
 
         return false;
     }
