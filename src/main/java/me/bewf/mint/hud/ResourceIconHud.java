@@ -3,7 +3,7 @@ package me.bewf.mint.hud;
 import cc.polyfrost.oneconfig.hud.BasicHud;
 import cc.polyfrost.oneconfig.libs.universal.UMatrixStack;
 import me.bewf.mint.config.MintConfig;
-import me.bewf.mint.tracker.ResourceTracker;
+import me.bewf.mint.util.ResourceTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.GlStateManager;

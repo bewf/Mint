@@ -1,10 +1,10 @@
 [
   {
-    "modid": "mint",
-    "name": "Mint",
+    "modid": "${mod_id}",
+    "name": "${mod_name}",
     "description": "Bedwars resource tracker",
     "logoFile": "assets/mint/minticon.png",
-    "version": "1.1.1",
+    "version": "${mod_version}",
     "mcversion": "1.8.9",
     "authorList": ["bewf"]
   }

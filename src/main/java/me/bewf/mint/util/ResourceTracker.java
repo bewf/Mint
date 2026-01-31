@@ -1,7 +1,6 @@
-package me.bewf.mint.tracker;
+package me.bewf.mint.util;
 
 import me.bewf.mint.config.MintConfig;
-import me.bewf.mint.util.BedwarsDetector;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.inventory.GuiChest;
 import net.minecraft.init.Blocks;
