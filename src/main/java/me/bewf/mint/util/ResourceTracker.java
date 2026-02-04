@@ -16,6 +16,10 @@ import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 public class ResourceTracker {
 
     public static int ironInv = 0;
@@ -36,17 +40,20 @@ public class ResourceTracker {
     private static int lastDiaBase = 0;
     private static int lastEmeBase = 0;
 
-    private static int ironPending = 0;
-    private static int goldPending = 0;
-    private static int diaPending = 0;
-    private static int emePending = 0;
-
-    private static int punchTicksLeft = 0;
-    private static Item punchItem = null;
-    private static int punchInvBefore = 0;
-
     private static boolean wasEnderGui = false;
     private static int enderGuiWarmup = 0;
+
+    private static class PendingDeposit {
+        Item item;
+        int inventorySnapshot;
+
+        PendingDeposit(Item item, int snapshot) {
+            this.item = item;
+            this.inventorySnapshot = snapshot;
+        }
+    }
+
+    private static final List<PendingDeposit> pendingDeposits = new ArrayList<>();
 
     public static boolean isActive() {
         return active;
@@ -54,8 +61,7 @@ public class ResourceTracker {
 
     @SubscribeEvent
     public void onMouse(MouseEvent event) {
-        if (event.button != 0) return;
-        if (!event.buttonstate) return;
+        if (event.button != 0 || !event.buttonstate) return;
 
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.thePlayer == null || mc.theWorld == null) return;
@@ -65,18 +71,12 @@ public class ResourceTracker {
 
         MovingObjectPosition mop = mc.objectMouseOver;
         if (mop == null || mop.typeOfHit != MovingObjectPosition.MovingObjectType.BLOCK) return;
-
         if (mc.theWorld.getBlockState(mop.getBlockPos()).getBlock() != Blocks.ender_chest) return;
 
         ItemStack held = mc.thePlayer.getHeldItem();
-        if (held == null) return;
+        if (held == null || !isTrackedItem(held.getItem())) return;
 
-        Item item = held.getItem();
-        if (!isTrackedItem(item)) return;
-
-        punchItem = item;
-        punchInvBefore = countItemInInventory(mc, item);
-        punchTicksLeft = 6;
+        pendingDeposits.add(new PendingDeposit(held.getItem(), countItemInInventory(mc, held.getItem())));
     }
 
     @SubscribeEvent
@@ -98,93 +98,58 @@ public class ResourceTracker {
 
         boolean debug = MintConfig.INSTANCE.showOutsideBedwars;
         active = BedwarsDetector.isInHypixelBedwars();
-
         if (!active && !debug) {
             resetAll();
             return;
         }
 
+        // update inventory HUD
         Counts invNow = countPlayerInventory(mc);
         ironInv = invNow.iron;
         goldInv = invNow.gold;
         diaInv = invNow.diamond;
         emeInv = invNow.emerald;
 
-        handlePunchWindow(mc);
+        handlePendingDeposits(mc);
 
         boolean inEnderGui = isEnderChestGuiOpen(mc);
+        if (inEnderGui && !wasEnderGui) enderGuiWarmup = 2;
 
-        if (inEnderGui && !wasEnderGui) {
-            enderGuiWarmup = 2; // avoid the first empty-tick flash
+        Counts chestCounts = inEnderGui ? countOpenEnderChestContainer(mc) : new Counts();
+
+        if (enderGuiWarmup > 0) {
+            enderGuiWarmup--;
+        } else if (inEnderGui) {
+            lastIronBase = chestCounts.iron;
+            lastGoldBase = chestCounts.gold;
+            lastDiaBase = chestCounts.diamond;
+            lastEmeBase = chestCounts.emerald;
         }
 
-        if (inEnderGui) {
-            Counts base = countOpenEnderChestContainer(mc);
-
-            if (enderGuiWarmup > 0) {
-                enderGuiWarmup--;
-                // keep showing the last known base while warmup runs
-            } else {
-                reconcilePending(base);
-
-                lastIronBase = base.iron;
-                lastGoldBase = base.gold;
-                lastDiaBase = base.diamond;
-                lastEmeBase = base.emerald;
-            }
-
-            ironEc = lastIronBase + ironPending;
-            goldEc = lastGoldBase + goldPending;
-            diaEc = lastDiaBase + diaPending;
-            emeEc = lastEmeBase + emePending;
-        } else {
-            ironEc = lastIronBase + ironPending;
-            goldEc = lastGoldBase + goldPending;
-            diaEc = lastDiaBase + diaPending;
-            emeEc = lastEmeBase + emePending;
-        }
+        ironEc = lastIronBase;
+        goldEc = lastGoldBase;
+        diaEc = lastDiaBase;
+        emeEc = lastEmeBase;
 
         wasEnderGui = inEnderGui;
     }
 
-    private void handlePunchWindow(Minecraft mc) {
-        if (punchTicksLeft <= 0) return;
+    private void handlePendingDeposits(Minecraft mc) {
+        Iterator<PendingDeposit> it = pendingDeposits.iterator();
+        while (it.hasNext()) {
+            PendingDeposit pd = it.next();
+            int now = countItemInInventory(mc, pd.item);
+            int diff = pd.inventorySnapshot - now;
+            if (diff > 0) {
+                // update hidden enderchest amount directly
+                if (pd.item == Items.iron_ingot) lastIronBase += diff;
+                else if (pd.item == Items.gold_ingot) lastGoldBase += diff;
+                else if (pd.item == Items.diamond) lastDiaBase += diff;
+                else if (pd.item == Items.emerald) lastEmeBase += diff;
 
-        punchTicksLeft--;
-
-        if (punchItem == null) {
-            punchTicksLeft = 0;
-            return;
+                it.remove(); // processed
+            }
         }
-
-        int now = countItemInInventory(mc, punchItem);
-        int diff = punchInvBefore - now;
-
-        if (diff > 0) {
-            addPending(punchItem, diff);
-
-            punchTicksLeft = 0;
-            punchItem = null;
-            punchInvBefore = 0;
-            return;
-        }
-
-        if (punchTicksLeft == 0) {
-            punchItem = null;
-            punchInvBefore = 0;
-        }
-    }
-
-    private void reconcilePending(Counts base) {
-        int ironInc = base.iron - lastIronBase;
-        int goldInc = base.gold - lastGoldBase;
-        int diaInc = base.diamond - lastDiaBase;
-        int emeInc = base.emerald - lastEmeBase;
-
-        if (ironInc > 0) ironPending = Math.max(0, ironPending - ironInc);
-        if (goldInc > 0) goldPending = Math.max(0, goldPending - goldInc);
-        if (diaInc > 0) diaPending = Math.max(0, diaPending - diaInc);
-        if (emeInc > 0) emePending = Math.max(0, emePending - emeInc);
     }
 
     private boolean isEnderChestGuiOpen(Minecraft mc) {
@@ -198,21 +163,18 @@ public class ResourceTracker {
 
         String name = lower.getDisplayName() != null ? lower.getDisplayName().getUnformattedText() : "";
         name = StringUtils.stripControlCodes(name).toLowerCase();
-
         return name.contains("ender chest");
     }
 
     private Counts countOpenEnderChestContainer(Minecraft mc) {
         Counts c = new Counts();
-
         Container container = mc.thePlayer.openContainer;
         if (!(container instanceof ContainerChest)) return c;
 
         ContainerChest chest = (ContainerChest) container;
         IInventory lower = chest.getLowerChestInventory();
 
-        int size = lower.getSizeInventory();
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < lower.getSizeInventory(); i++) {
             ItemStack stack = lower.getStackInSlot(i);
             if (stack == null) continue;
 
@@ -225,26 +187,13 @@ public class ResourceTracker {
         return c;
     }
 
-    private void addPending(Item item, int amount) {
-        if (amount <= 0) return;
-
-        if (item == Items.iron_ingot) ironPending += amount;
-        else if (item == Items.gold_ingot) goldPending += amount;
-        else if (item == Items.diamond) diaPending += amount;
-        else if (item == Items.emerald) emePending += amount;
-    }
-
     private boolean isTrackedItem(Item item) {
-        return item == Items.iron_ingot
-                || item == Items.gold_ingot
-                || item == Items.diamond
-                || item == Items.emerald;
+        return item == Items.iron_ingot || item == Items.gold_ingot || item == Items.diamond || item == Items.emerald;
     }
 
     private int countItemInInventory(Minecraft mc, Item item) {
         int total = 0;
-        ItemStack[] inv = mc.thePlayer.inventory.mainInventory;
-        for (ItemStack stack : inv) {
+        for (ItemStack stack : mc.thePlayer.inventory.mainInventory) {
             if (stack == null) continue;
             if (stack.getItem() == item) total += stack.stackSize;
         }
@@ -253,30 +202,22 @@ public class ResourceTracker {
 
     private Counts countPlayerInventory(Minecraft mc) {
         Counts c = new Counts();
-
-        ItemStack[] inv = mc.thePlayer.inventory.mainInventory;
-        for (ItemStack stack : inv) {
+        for (ItemStack stack : mc.thePlayer.inventory.mainInventory) {
             if (stack == null) continue;
-
             if (stack.getItem() == Items.iron_ingot) c.iron += stack.stackSize;
             else if (stack.getItem() == Items.gold_ingot) c.gold += stack.stackSize;
             else if (stack.getItem() == Items.diamond) c.diamond += stack.stackSize;
             else if (stack.getItem() == Items.emerald) c.emerald += stack.stackSize;
         }
-
         return c;
     }
 
     private void resetAll() {
         ironInv = goldInv = diaInv = emeInv = 0;
         ironEc = goldEc = diaEc = emeEc = 0;
-
         lastIronBase = lastGoldBase = lastDiaBase = lastEmeBase = 0;
-        ironPending = goldPending = diaPending = emePending = 0;
 
-        punchTicksLeft = 0;
-        punchItem = null;
-        punchInvBefore = 0;
+        pendingDeposits.clear();
 
         wasEnderGui = false;
         enderGuiWarmup = 0;

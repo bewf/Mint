@@ -5,6 +5,7 @@ import cc.polyfrost.oneconfig.config.annotations.Checkbox;
 import cc.polyfrost.oneconfig.config.annotations.Color;
 import cc.polyfrost.oneconfig.config.annotations.DualOption;
 import cc.polyfrost.oneconfig.config.annotations.HUD;
+import cc.polyfrost.oneconfig.config.annotations.Text;
 import cc.polyfrost.oneconfig.config.core.OneColor;
 import cc.polyfrost.oneconfig.config.data.Mod;
 import cc.polyfrost.oneconfig.config.data.ModType;
@@ -47,7 +48,7 @@ public class MintConfig extends Config {
 
     @Checkbox(
             name = "Storage Colors",
-            description = "Colors inventory, ender chest, and total to make it easier to read.",
+            description = "Colors inventory, ender chest, total, and separators.",
             category = "HUD",
             subcategory = "Colors"
     )
@@ -58,21 +59,28 @@ public class MintConfig extends Config {
             category = "HUD",
             subcategory = "Colors"
     )
-    public OneColor inventoryColor = new OneColor(232, 217, 194); // light beige
+    public OneColor inventoryColor = new OneColor(232, 217, 194);
 
     @Color(
             name = "Ender Chest Color",
             category = "HUD",
             subcategory = "Colors"
     )
-    public OneColor enderChestColor = new OneColor(190, 63, 255); // #be3fff
+    public OneColor enderChestColor = new OneColor(190, 63, 255);
 
     @Color(
             name = "Total Color",
             category = "HUD",
             subcategory = "Colors"
     )
-    public OneColor totalColor = new OneColor(255, 255, 255); // white
+    public OneColor totalColor = new OneColor(255, 255, 255);
+
+    @Color(
+            name = "Separator Color",
+            category = "HUD",
+            subcategory = "Colors"
+    )
+    public OneColor separatorColor = new OneColor(120, 120, 120);
 
     @Checkbox(
             name = "Show Iron",
@@ -108,6 +116,23 @@ public class MintConfig extends Config {
             category = "Debug"
     )
     public boolean showOutsideBedwars = false;
+
+    // Labels subcategory
+    @Text(
+            name = "Addition Label",
+            description = "Character(s) used between inventory and ender chest counts.",
+            category = "HUD",
+            subcategory = "Labels"
+    )
+    public String additionLabel = "+";
+
+    @Text(
+            name = "Equal Label",
+            description = "Character(s) used between ender chest and total counts.",
+            category = "HUD",
+            subcategory = "Labels"
+    )
+    public String equalLabel = ":";
 
     public MintConfig() {
         super(

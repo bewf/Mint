@@ -122,13 +122,11 @@ public class ResourceIconHud extends BasicHud {
         float textY = y + (rowH - (fontH * textScale)) / 2f;
 
         if (!safeStorageColors()) {
-            // Colors off: always show explicit format so storage is not ambiguous
             String full = buildPlainText(inv, ec);
             fr.drawStringWithShadow(full, textX, textY, 0xFFFFFF);
             return (iconSize + iconPad + fr.getStringWidth(full));
         }
 
-        // Colors on: hide 0-side and color segments
         float drawn = drawColoredText(fr, textX, textY, inv, ec);
         return (iconSize + iconPad + drawn);
     }
@@ -137,6 +135,10 @@ public class ResourceIconHud extends BasicHud {
         int invColor = safeInventoryColor();
         int ecColor = safeEnderChestColor();
         int totalColor = safeTotalColor();
+        int sepColor = safeSeparatorColor();
+
+        String add = safeAdditionLabel();
+        String eq = safeEqualLabel();
 
         String invS = formatCount(inv);
         String ecS = formatCount(ec);
@@ -159,18 +161,18 @@ public class ResourceIconHud extends BasicHud {
             return fr.getStringWidth("0");
         }
 
-        // both > 0: inv(beige)+ec(purple): total(white)
+        // both > 0: inv(add)+ec(total): total
         fr.drawStringWithShadow(invS, cx, y, invColor);
         cx += fr.getStringWidth(invS);
 
-        fr.drawStringWithShadow("+", cx, y, 0xFFFFFF);
-        cx += fr.getStringWidth("+");
+        fr.drawStringWithShadow(add, cx, y, sepColor);
+        cx += fr.getStringWidth(add);
 
         fr.drawStringWithShadow(ecS, cx, y, ecColor);
         cx += fr.getStringWidth(ecS);
 
-        fr.drawStringWithShadow(": ", cx, y, 0xFFFFFF);
-        cx += fr.getStringWidth(": ");
+        fr.drawStringWithShadow(eq, cx, y, sepColor);
+        cx += fr.getStringWidth(eq);
 
         fr.drawStringWithShadow(totalS, cx, y, totalColor);
         cx += fr.getStringWidth(totalS);
@@ -179,24 +181,14 @@ public class ResourceIconHud extends BasicHud {
     }
 
     private String buildPlainText(int inv, int ec) {
-        // Colors off: always show inv+ec: total so storage is clear
         String invS = formatCount(inv);
         String ecS = formatCount(ec);
         String totalS = formatCount(inv + ec);
-        return invS + "+" + ecS + ": " + totalS;
-    }
 
-    private String buildDisplayTextForWidth(int inv, int ec) {
-        // Must match draw behavior so the HUD background sizes correctly
-        if (!safeStorageColors()) {
-            return buildPlainText(inv, ec);
-        }
+        String add = safeAdditionLabel();
+        String eq = safeEqualLabel();
 
-        if (inv > 0 && ec <= 0) return formatCount(inv);
-        if (inv <= 0 && ec > 0) return formatCount(ec);
-        if (inv <= 0 && ec <= 0) return "0";
-
-        return formatCount(inv) + "+" + formatCount(ec) + ": " + formatCount(inv + ec);
+        return invS + add + ecS + eq + totalS;
     }
 
     private String formatCount(int n) {
@@ -204,7 +196,6 @@ public class ResourceIconHud extends BasicHud {
         if (n < 1000) return String.valueOf(n);
 
         double k = n / 1000.0;
-
         if (k < 10.0) {
             double oneDec = Math.round(k * 10.0) / 10.0;
             String s = String.valueOf(oneDec);
@@ -226,7 +217,6 @@ public class ResourceIconHud extends BasicHud {
         int horizontalGap = Math.round(3f * scale);
 
         boolean horizontal = safeHorizontalLayout();
-
         List<Row> rows = buildRows(example);
 
         if (rows.isEmpty() && !example) return 0f;
@@ -236,7 +226,7 @@ public class ResourceIconHud extends BasicHud {
             int sum = 0;
             for (int i = 0; i < rows.size(); i++) {
                 Row r = rows.get(i);
-                String text = buildDisplayTextForWidth(r.inv, r.ec);
+                String text = buildPlainText(r.inv, r.ec);
                 sum += iconSize + iconPad + mc.fontRendererObj.getStringWidth(text);
                 if (i != rows.size() - 1) sum += horizontalGap;
             }
@@ -244,7 +234,7 @@ public class ResourceIconHud extends BasicHud {
         } else {
             int max = 0;
             for (Row r : rows) {
-                String text = buildDisplayTextForWidth(r.inv, r.ec);
+                String text = buildPlainText(r.inv, r.ec);
                 int w = iconSize + iconPad + mc.fontRendererObj.getStringWidth(text);
                 if (w > max) max = w;
             }
@@ -258,15 +248,10 @@ public class ResourceIconHud extends BasicHud {
         int lineH = Math.round(18f * scale);
 
         List<Row> rows = buildRows(example);
-
         if (rows.isEmpty() && !example) return 0f;
 
-        if (horizontal) {
-            return lineH;
-        } else {
-            int lines = rows.isEmpty() ? 1 : rows.size();
-            return lineH * lines;
-        }
+        if (horizontal) return lineH;
+        else return lineH * (rows.isEmpty() ? 1 : rows.size());
     }
 
     private boolean safeShowOutsideBedwars() {
@@ -317,39 +302,41 @@ public class ResourceIconHud extends BasicHud {
     private int safeInventoryColor() {
         MintConfig cfg = safeConfig();
         if (cfg == null || cfg.inventoryColor == null) return 0xE8D9C2;
-        try {
-            return cfg.inventoryColor.getRGB();
-        } catch (Throwable t) {
-            return 0xE8D9C2;
-        }
+        try { return cfg.inventoryColor.getRGB(); } catch (Throwable t) { return 0xE8D9C2; }
     }
 
     private int safeEnderChestColor() {
         MintConfig cfg = safeConfig();
         if (cfg == null || cfg.enderChestColor == null) return 0xBE3FFF;
-        try {
-            return cfg.enderChestColor.getRGB();
-        } catch (Throwable t) {
-            return 0xBE3FFF;
-        }
+        try { return cfg.enderChestColor.getRGB(); } catch (Throwable t) { return 0xBE3FFF; }
     }
 
     private int safeTotalColor() {
         MintConfig cfg = safeConfig();
         if (cfg == null || cfg.totalColor == null) return 0xFFFFFF;
-        try {
-            return cfg.totalColor.getRGB();
-        } catch (Throwable t) {
-            return 0xFFFFFF;
-        }
+        try { return cfg.totalColor.getRGB(); } catch (Throwable t) { return 0xFFFFFF; }
+    }
+
+    private int safeSeparatorColor() {
+        MintConfig cfg = safeConfig();
+        if (cfg == null || cfg.separatorColor == null) return 0xAAAAAA;
+        try { return cfg.separatorColor.getRGB(); } catch (Throwable t) { return 0xAAAAAA; }
+    }
+
+    private String safeAdditionLabel() {
+        MintConfig cfg = safeConfig();
+        if (cfg == null || cfg.additionLabel == null) return "+";
+        return cfg.additionLabel;
+    }
+
+    private String safeEqualLabel() {
+        MintConfig cfg = safeConfig();
+        if (cfg == null || cfg.equalLabel == null) return ":";
+        return cfg.equalLabel;
     }
 
     private MintConfig safeConfig() {
-        try {
-            return MintConfig.INSTANCE;
-        } catch (Throwable t) {
-            return null;
-        }
+        try { return MintConfig.INSTANCE; } catch (Throwable t) { return null; }
     }
 
     private static class Row {
