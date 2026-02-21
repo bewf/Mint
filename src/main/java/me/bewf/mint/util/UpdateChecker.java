@@ -24,8 +24,21 @@ public final class UpdateChecker {
 
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor();
     private static boolean ran = false;
+    private static boolean updateMessageSent = false;
 
     private UpdateChecker() {
+    }
+
+    public static void setUpdateMessageSent(boolean sent) {
+        updateMessageSent = sent;
+    }
+
+    public static boolean isUpdateMessageSent() {
+        return updateMessageSent;
+    }
+
+    public static void resetRanFlag() {
+        ran = false;
     }
 
     public static void checkOnce(String projectId,
@@ -40,21 +53,30 @@ public final class UpdateChecker {
         EXEC.submit(() -> {
             try {
                 String latest = fetchBestLatestVersion(projectId, mcVersion, loader);
-                if (latest == null) return;
+                if (latest == null) {
+                    System.out.println("[" + displayName + "] Update check: no matching versions for " + mcVersion + " (" + loader + ")");
+                    return;
+                }
 
-                if (!isNewer(latest, currentVersion)) return;
+                if (!isNewer(latest, currentVersion)) {
+                    System.out.println("[" + displayName + "] Update check: up to date (" + currentVersion + ")");
+                    return;
+                }
 
                 Minecraft.getMinecraft().addScheduledTask(() -> {
                     if (Minecraft.getMinecraft().thePlayer == null) return;
-                    Minecraft.getMinecraft().thePlayer.addChatMessage(
-                            buildMessage(projectSlug, displayName, latest, currentVersion)
-                    );
+                    Minecraft.getMinecraft().thePlayer.addChatMessage(buildMessage(projectSlug, displayName, latest, currentVersion));
+                    updateMessageSent = true;
+                    NotificationManager.showUpdateNotificationWithConfigTip();
                 });
+
+                System.out.println("[" + displayName + "] Update check: " + latest + " available (current " + currentVersion + ")");
             } catch (Throwable t) {
                 System.err.println("[" + displayName + "] Update check failed: " + t);
             }
         });
     }
+
 
     private static String fetchBestLatestVersion(String projectId, String mcVersion, String loader) throws Exception {
         String gv = "[\"" + mcVersion + "\"]";
@@ -70,26 +92,50 @@ public final class UpdateChecker {
         con.setRequestMethod("GET");
         con.setConnectTimeout(6000);
         con.setReadTimeout(6000);
+        con.setRequestProperty("User-Agent", "MintUpdateChecker");
 
-        if (con.getResponseCode() < 200 || con.getResponseCode() >= 300) return null;
+        int code = con.getResponseCode();
+        if (code < 200 || code >= 300) {
+            System.out.println("[Mint] Update check HTTP " + code);
+            return null;
+        }
 
-        try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
 
-            JsonArray arr = new JsonParser().parse(br.readLine()).getAsJsonArray();
+            JsonElement parsed = new JsonParser().parse(sb.toString());
+            if (!parsed.isJsonArray()) return null;
+
+            JsonArray arr = parsed.getAsJsonArray();
+            if (arr.size() == 0) return null;
 
             String best = null;
             int[] bestV = null;
 
             for (JsonElement el : arr) {
-                String ver = el.getAsJsonObject().get("version_number").getAsString();
+                if (!el.isJsonObject()) continue;
+                JsonObject obj = el.getAsJsonObject();
+
+                JsonElement vEl = obj.get("version_number");
+                if (vEl == null) continue;
+
+                String ver = vEl.getAsString();
                 int[] pv = parseVersion(ver);
 
-                if (best == null || compareVersion(pv, bestV) > 0) {
+                if (best == null) {
+                    best = ver;
+                    bestV = pv;
+                    continue;
+                }
+
+                if (compareVersion(pv, bestV) > 0) {
                     best = ver;
                     bestV = pv;
                 }
             }
+
             return best;
         }
     }
@@ -99,11 +145,8 @@ public final class UpdateChecker {
     }
 
     private static int compareVersion(int[] a, int[] b) {
-        if (b == null) return 1;
-        for (int i = 0; i < Math.max(a.length, b.length); i++) {
-            int ai = i < a.length ? a[i] : 0;
-            int bi = i < b.length ? b[i] : 0;
-            if (ai != bi) return ai - bi;
+        for (int i = 0; i < 3; i++) {
+            if (a[i] != b[i]) return Integer.compare(a[i], b[i]);
         }
         return 0;
     }
@@ -112,29 +155,33 @@ public final class UpdateChecker {
         int[] out = new int[]{0, 0, 0};
         if (v == null) return out;
 
-        String clean = v.split("-")[0];
-        String[] parts = clean.split("\\.");
+        String clean = v.trim();
+        int dash = clean.indexOf('-');
+        if (dash >= 0) clean = clean.substring(0, dash);
 
+        String[] parts = clean.split("\\.");
         for (int i = 0; i < out.length && i < parts.length; i++) {
             try {
-                out[i] = Integer.parseInt(parts[i].replaceAll("[^0-9]", ""));
-            } catch (Exception ignored) {
+                String num = parts[i].replaceAll("[^0-9]", "");
+                out[i] = num.isEmpty() ? 0 : Integer.parseInt(num);
+            } catch (Throwable ignored) {
+                out[i] = 0;
             }
         }
         return out;
     }
 
-    private static IChatComponent buildMessage(String slug, String name, String latest, String current) {
-        String versionsUrl = "https://modrinth.com/mod/" + slug + "/versions";
+    private static IChatComponent buildMessage(String projectSlug, String displayName, String latest, String current) {
+        String versionsUrl = "https://modrinth.com/mod/" + projectSlug + "/versions";
 
         ChatComponentText root = new ChatComponentText("\n");
 
         IChatComponent prefix = new ChatComponentText(
-                EnumChatFormatting.AQUA + "[" + name + "] "
+                EnumChatFormatting.AQUA + "[" + displayName + "] "
         );
 
         IChatComponent line1 = new ChatComponentText(
-                EnumChatFormatting.YELLOW + "Update available: " +
+                EnumChatFormatting.YELLOW + "A new update is available: " +
                         EnumChatFormatting.GOLD + latest +
                         EnumChatFormatting.YELLOW + " (current " +
                         EnumChatFormatting.GOLD + current +
@@ -154,10 +201,7 @@ public final class UpdateChecker {
         root.appendSibling(new ChatComponentText("\n"));
 
         line2.getChatStyle()
-                .setChatClickEvent(new ClickEvent(
-                        ClickEvent.Action.OPEN_URL,
-                        versionsUrl
-                ))
+                .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, versionsUrl))
                 .setChatHoverEvent(new HoverEvent(
                         HoverEvent.Action.SHOW_TEXT,
                         new ChatComponentText(EnumChatFormatting.LIGHT_PURPLE + "Open versions page")

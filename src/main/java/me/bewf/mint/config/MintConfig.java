@@ -1,6 +1,7 @@
 package me.bewf.mint.config;
 
 import cc.polyfrost.oneconfig.config.Config;
+import cc.polyfrost.oneconfig.config.annotations.Button;
 import cc.polyfrost.oneconfig.config.annotations.Checkbox;
 import cc.polyfrost.oneconfig.config.annotations.Color;
 import cc.polyfrost.oneconfig.config.annotations.DualOption;
@@ -9,7 +10,11 @@ import cc.polyfrost.oneconfig.config.annotations.Text;
 import cc.polyfrost.oneconfig.config.core.OneColor;
 import cc.polyfrost.oneconfig.config.data.Mod;
 import cc.polyfrost.oneconfig.config.data.ModType;
+import cc.polyfrost.oneconfig.libs.universal.UChat;
+import me.bewf.mint.Mint;
 import me.bewf.mint.hud.ResourceIconHud;
+import me.bewf.mint.util.UpdateChecker;
+import net.minecraft.util.EnumChatFormatting;
 
 public class MintConfig extends Config {
 
@@ -117,6 +122,59 @@ public class MintConfig extends Config {
     )
     public boolean showOutsideBedwars = false;
 
+    @Checkbox(
+            name = "Update Checker",
+            description = "Show update notification when joining the game.",
+            category = "Debug",
+            subcategory = "Updates"
+    )
+    public boolean updateCheckerEnabled = true;
+
+    @Button(
+            name = "Manual Check",
+            text = "Check for Updates",
+            category = "Debug",
+            subcategory = "Updates"
+    )
+    public Runnable manualUpdateCheck = () -> {
+        UChat.chat(EnumChatFormatting.AQUA + "[Mint] " + EnumChatFormatting.GOLD + "Checking for updates...");
+
+        new Thread(() -> {
+            try {
+                // Reset the flag to allow checkOnce to run again
+                UpdateChecker.resetRanFlag();
+                UpdateChecker.setUpdateMessageSent(false);
+
+                UpdateChecker.checkOnce(
+                        Mint.MODRINTH_PROJECT_ID,
+                        Mint.MODRINTH_SLUG,
+                        Mint.NAME,
+                        Mint.VERSION,
+                        Mint.MC_VERSION,
+                        Mint.LOADER
+                );
+
+                // Add fallback message if no update message was shown after 3 seconds
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(3000);
+                        if (!UpdateChecker.isUpdateMessageSent()) {
+                            UChat.chat(EnumChatFormatting.AQUA + "[Mint] " + EnumChatFormatting.GREEN + "Up to date");
+                        }
+                    } catch (InterruptedException e) {
+                        // Ignore
+                    }
+                }).start();
+
+            } catch (Exception e) {
+                UChat.chat(EnumChatFormatting.AQUA + "[Mint] " + EnumChatFormatting.RED + "Failed to check for updates: " + e.getMessage());
+            }
+        }).start();
+    };
+
+    // Internal flag to track if config tip has been shown (hidden from UI)
+    public boolean hasShownConfigTip = false;
+
     // Labels subcategory
     @Text(
             name = "Addition Label",
@@ -145,5 +203,9 @@ public class MintConfig extends Config {
         );
 
         initialize();
+    }
+
+    public static void saveConfig() {
+        if (INSTANCE != null) INSTANCE.save();
     }
 }

@@ -1,11 +1,13 @@
 package me.bewf.mint.util;
 
 import me.bewf.mint.Mint;
+import me.bewf.mint.config.MintConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 public final class UpdateCheckListener {
+
     private boolean started = false;
 
     @SubscribeEvent
@@ -17,6 +19,12 @@ public final class UpdateCheckListener {
 
         if (started) return;
         started = true;
+
+        // Check if update checker is enabled in config
+        if (MintConfig.INSTANCE != null && !MintConfig.INSTANCE.updateCheckerEnabled) {
+            System.out.println("[Mint] Update checker disabled in config");
+            return;
+        }
 
         UpdateChecker.checkOnce(
                 Mint.MODRINTH_PROJECT_ID,
