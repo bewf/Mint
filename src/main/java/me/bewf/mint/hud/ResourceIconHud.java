@@ -121,17 +121,25 @@ public class ResourceIconHud extends BasicHud {
         float textX = x + iconSize + iconPad;
         float textY = y + (rowH - (fontH * textScale)) / 2f;
 
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(textX, textY, 0f);
+        GlStateManager.scale(textScale, textScale, 1f);
+
+        float drawn;
         if (!safeStorageColors()) {
             String full = buildPlainText(inv, ec);
-            fr.drawStringWithShadow(full, textX, textY, 0xFFFFFF);
-            return (iconSize + iconPad + fr.getStringWidth(full));
+            fr.drawStringWithShadow(full, 0, 0, 0xFFFFFF);
+            drawn = fr.getStringWidth(full) * textScale;
+        } else {
+            drawn = drawColoredText(fr, 0, 0, inv, ec, textScale);
         }
 
-        float drawn = drawColoredText(fr, textX, textY, inv, ec);
+        GlStateManager.popMatrix();
+
         return (iconSize + iconPad + drawn);
     }
 
-    private float drawColoredText(FontRenderer fr, float x, float y, int inv, int ec) {
+    private float drawColoredText(FontRenderer fr, float x, float y, int inv, int ec, float textScale) {
         int invColor = safeInventoryColor();
         int ecColor = safeEnderChestColor();
         int totalColor = safeTotalColor();
@@ -148,17 +156,17 @@ public class ResourceIconHud extends BasicHud {
 
         if (inv > 0 && ec <= 0) {
             fr.drawStringWithShadow(invS, cx, y, invColor);
-            return fr.getStringWidth(invS);
+            return fr.getStringWidth(invS) * textScale;
         }
 
         if (inv <= 0 && ec > 0) {
             fr.drawStringWithShadow(ecS, cx, y, ecColor);
-            return fr.getStringWidth(ecS);
+            return fr.getStringWidth(ecS) * textScale;
         }
 
         if (inv <= 0 && ec <= 0) {
             fr.drawStringWithShadow("0", cx, y, totalColor);
-            return fr.getStringWidth("0");
+            return fr.getStringWidth("0") * textScale;
         }
 
         // both > 0: inv(add)+ec(total): total
@@ -177,7 +185,7 @@ public class ResourceIconHud extends BasicHud {
         fr.drawStringWithShadow(totalS, cx, y, totalColor);
         cx += fr.getStringWidth(totalS);
 
-        return (cx - x);
+        return (cx - x) * textScale;
     }
 
     private String buildPlainText(int inv, int ec) {
