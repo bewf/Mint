@@ -51,6 +51,19 @@ public class MintConfig extends Config {
     )
     public boolean hideWhenZero = false;
 
+    /*
+     * NEW: Team chest tracking toggle
+     * Default OFF
+     */
+
+    @Checkbox(
+            name = "Track Team Chest",
+            description = "Tracks team chest. Note that the HUD will not update if a teammate takes something in or out of the chest.",
+            category = "HUD",
+            subcategory = "Storage"
+    )
+    public boolean trackTeamChest = false;
+
     @Checkbox(
             name = "Storage Colors",
             description = "Colors inventory, ender chest, total, and separators.",
@@ -72,6 +85,17 @@ public class MintConfig extends Config {
             subcategory = "Colors"
     )
     public OneColor enderChestColor = new OneColor(190, 63, 255);
+
+    /*
+     * NEW: Team chest color
+     */
+
+    @Color(
+            name = "Team Chest Color",
+            category = "HUD",
+            subcategory = "Colors"
+    )
+    public OneColor teamChestColor = new OneColor(85, 170, 255);
 
     @Color(
             name = "Total Color",
@@ -141,7 +165,6 @@ public class MintConfig extends Config {
 
         new Thread(() -> {
             try {
-                // Reset the flag to allow checkOnce to run again
                 UpdateChecker.resetRanFlag();
                 UpdateChecker.setUpdateMessageSent(false);
 
@@ -154,7 +177,6 @@ public class MintConfig extends Config {
                         Mint.LOADER
                 );
 
-                // Add fallback message if no update message was shown after 3 seconds
                 new Thread(() -> {
                     try {
                         Thread.sleep(3000);
@@ -175,7 +197,6 @@ public class MintConfig extends Config {
     // Internal flag to track if config tip has been shown (hidden from UI)
     public boolean hasShownConfigTip = false;
 
-    // Labels subcategory
     @Text(
             name = "Addition Label",
             description = "Character(s) used between inventory and ender chest counts.",
