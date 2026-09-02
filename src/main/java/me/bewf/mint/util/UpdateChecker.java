@@ -4,16 +4,17 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.event.ClickEvent;
-import net.minecraft.event.HoverEvent;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.IChatComponent;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -42,11 +43,11 @@ public final class UpdateChecker {
     }
 
     public static void checkOnce(String projectId,
-                                 String projectSlug,
-                                 String displayName,
-                                 String currentVersion,
-                                 String mcVersion,
-                                 String loader) {
+                                  String projectSlug,
+                                  String displayName,
+                                  String currentVersion,
+                                  String mcVersion,
+                                  String loader) {
         if (ran) return;
         ran = true;
 
@@ -63,9 +64,25 @@ public final class UpdateChecker {
                     return;
                 }
 
-                Minecraft.getMinecraft().addScheduledTask(() -> {
-                    if (Minecraft.getMinecraft().thePlayer == null) return;
-                    Minecraft.getMinecraft().thePlayer.addChatMessage(buildMessage(projectSlug, displayName, latest, currentVersion));
+                Minecraft.getInstance().execute(() -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc.player == null) return;
+
+                    Component message = buildMessage(projectSlug, displayName, latest, currentVersion);
+                    boolean sent = ReflectUtil.tryCall(mc.player, "displayClientMessage", message, false)
+                            || ReflectUtil.tryCall(mc.player, "sendSystemMessage", message);
+
+                    if (!sent) {
+                        Object chat = ReflectUtil.tryGetNoArg(mc.gui, "getChat");
+                        if (chat == null) chat = ReflectUtil.tryGetNoArg(mc.gui, "chat");
+                        if (chat != null) {
+                            sent = ReflectUtil.tryCall(chat, "addMessage", message)
+                                    || ReflectUtil.tryCall(chat, "addMessage", message, null, null, null);
+                        }
+                    }
+
+                    if (!sent) System.out.println(message.getString());
+
                     updateMessageSent = true;
                     NotificationManager.showUpdateNotificationWithConfigTip();
                 });
@@ -77,7 +94,6 @@ public final class UpdateChecker {
         });
     }
 
-
     private static String fetchBestLatestVersion(String projectId, String mcVersion, String loader) throws Exception {
         String gv = "[\"" + mcVersion + "\"]";
         String ld = "[\"" + loader + "\"]";
@@ -85,10 +101,10 @@ public final class UpdateChecker {
         String apiUrl =
                 "https://api.modrinth.com/v2/project/" + projectId + "/version" +
                         "?limit=50" +
-                        "&game_versions=" + URLEncoder.encode(gv, "UTF-8") +
-                        "&loaders=" + URLEncoder.encode(ld, "UTF-8");
+                        "&game_versions=" + URLEncoder.encode(gv, StandardCharsets.UTF_8) +
+                        "&loaders=" + URLEncoder.encode(ld, StandardCharsets.UTF_8);
 
-        HttpURLConnection con = (HttpURLConnection) new URL(apiUrl).openConnection();
+        HttpURLConnection con = (HttpURLConnection) URI.create(apiUrl).toURL().openConnection();
         con.setRequestMethod("GET");
         con.setConnectTimeout(6000);
         con.setReadTimeout(6000);
@@ -105,11 +121,11 @@ public final class UpdateChecker {
             String line;
             while ((line = br.readLine()) != null) sb.append(line);
 
-            JsonElement parsed = new JsonParser().parse(sb.toString());
+            JsonElement parsed = JsonParser.parseString(sb.toString());
             if (!parsed.isJsonArray()) return null;
 
             JsonArray arr = parsed.getAsJsonArray();
-            if (arr.size() == 0) return null;
+            if (arr.isEmpty()) return null;
 
             String best = null;
             int[] bestV = null;
@@ -171,42 +187,36 @@ public final class UpdateChecker {
         return out;
     }
 
-    private static IChatComponent buildMessage(String projectSlug, String displayName, String latest, String current) {
+    private static Component buildMessage(String projectSlug, String displayName, String latest, String current) {
         String versionsUrl = "https://modrinth.com/mod/" + projectSlug + "/versions";
 
-        ChatComponentText root = new ChatComponentText("\n");
+        MutableComponent root = Component.literal("\n");
 
-        IChatComponent prefix = new ChatComponentText(
-                EnumChatFormatting.AQUA + "[" + displayName + "] "
+        Component prefix = Component.literal(
+                ChatFormatting.AQUA + "[" + displayName + "] "
         );
 
-        IChatComponent line1 = new ChatComponentText(
-                EnumChatFormatting.YELLOW + "A new update is available: " +
-                        EnumChatFormatting.GOLD + latest +
-                        EnumChatFormatting.YELLOW + " (current " +
-                        EnumChatFormatting.GOLD + current +
-                        EnumChatFormatting.YELLOW + ")"
+        Component line1 = Component.literal(
+                ChatFormatting.YELLOW + "A new update is available: " +
+                        ChatFormatting.GOLD + latest +
+                        ChatFormatting.YELLOW + " (current " +
+                        ChatFormatting.GOLD + current +
+                        ChatFormatting.YELLOW + ")"
         );
 
-        IChatComponent line2 = new ChatComponentText(
+        MutableComponent line2 = Component.literal(
                 "\n" +
-                        EnumChatFormatting.LIGHT_PURPLE +
-                        EnumChatFormatting.BOLD.toString() +
+                        ChatFormatting.LIGHT_PURPLE +
+                        ChatFormatting.BOLD +
                         "Click to download"
         );
 
-        root.appendSibling(prefix);
-        root.appendSibling(line1);
-        root.appendSibling(line2);
-        root.appendSibling(new ChatComponentText("\n"));
+        line2.setStyle(line2.getStyle()
+                .withClickEvent(new ClickEvent.OpenUrl(URI.create(versionsUrl)))
+                .withHoverEvent(new HoverEvent.ShowText(
+                        Component.literal(ChatFormatting.LIGHT_PURPLE + "Open versions page")
+                )));
 
-        line2.getChatStyle()
-                .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, versionsUrl))
-                .setChatHoverEvent(new HoverEvent(
-                        HoverEvent.Action.SHOW_TEXT,
-                        new ChatComponentText(EnumChatFormatting.LIGHT_PURPLE + "Open versions page")
-                ));
-
-        return root;
+        return root.append(prefix).append(line1).append(line2).append(Component.literal("\n"));
     }
 }

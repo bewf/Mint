@@ -1,22 +1,22 @@
 package me.bewf.mint.util;
 
 import me.bewf.mint.config.MintConfig;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.inventory.GuiChest;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.inventory.Container;
-import net.minecraft.inventory.ContainerChest;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.MovingObjectPosition;
-import net.minecraft.util.StringUtils;
-import net.minecraftforge.client.event.ClientChatReceivedEvent;
-import net.minecraftforge.client.event.MouseEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.StringUtil;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.level.block.Blocks;
+import org.polyfrost.oneconfig.api.event.v1.EventManager;
+import org.polyfrost.oneconfig.api.event.v1.events.TickEvent;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -26,19 +26,16 @@ import java.util.regex.Pattern;
 
 public class ResourceTracker {
 
-    // Player inventory counts
     public static int ironInv = 0;
     public static int goldInv = 0;
     public static int diaInv = 0;
     public static int emeInv = 0;
 
-    // Ender chest counts
     public static int ironEc = 0;
     public static int goldEc = 0;
     public static int diaEc = 0;
     public static int emeEc = 0;
 
-    // Team chest counts
     public static int teamChestIron = 0;
     public static int teamChestGold = 0;
     public static int teamChestDiamond = 0;
@@ -59,7 +56,6 @@ public class ResourceTracker {
     private static boolean wasTeamGui = false;
     private static int teamChestGuiWarmup = 0;
 
-    // Regex patterns for parsing team chest messages
     private static final Pattern TOTAL_NUMBER_PATTERN = Pattern.compile("\\((\\d+)");
     private static final Pattern[] MATERIAL_PATTERNS = {
             Pattern.compile("iron", Pattern.CASE_INSENSITIVE),
@@ -68,11 +64,12 @@ public class ResourceTracker {
             Pattern.compile("emerald", Pattern.CASE_INSENSITIVE)
     };
 
-    // Regex for team chest deposit message
     private static final Pattern TEAM_DEPOSIT_PATTERN = Pattern.compile(
             "Deposited \\d+ (.+) into Team Chest!? ?\\((\\d+)\\)? ?total?",
             Pattern.CASE_INSENSITIVE
     );
+
+    private static final int PLAYER_INVENTORY_SLOTS = 36;
 
     private static class PendingDeposit {
         Item item;
@@ -90,50 +87,46 @@ public class ResourceTracker {
         return active;
     }
 
-    // Detect punch on ender chest
-    @SubscribeEvent
-    public void onMouse(MouseEvent event) {
-        if (event.button != 0 || !event.buttonstate) return;
+    public void register() {
+        EventManager.INSTANCE.register(TickEvent.End.class, event -> onClientTick());
+        AttackBlockCallback.EVENT.register(this::onAttackBlock);
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChat(message.getString()));
+        ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, timestamp) -> onChat(message.getString()));
+    }
 
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc.thePlayer == null || mc.theWorld == null) return;
+    private InteractionResult onAttackBlock(net.minecraft.world.entity.player.Player player, net.minecraft.world.level.Level world, InteractionHand hand, BlockPos pos, net.minecraft.core.Direction direction) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return InteractionResult.PASS;
 
         boolean debug = MintConfig.INSTANCE.showOutsideBedwars;
-        if (!active && !debug) return;
+        if (!active && !debug) return InteractionResult.PASS;
 
-        MovingObjectPosition mop = mc.objectMouseOver;
-        if (mop == null || mop.typeOfHit != MovingObjectPosition.MovingObjectType.BLOCK) return;
+        ItemStack held = player.getItemInHand(hand);
 
-        ItemStack held = mc.thePlayer.getHeldItem();
-
-        if (mc.theWorld.getBlockState(mop.getBlockPos()).getBlock() == Blocks.ender_chest) {
-            if (held == null || !isTrackedItem(held.getItem())) return;
+        if (world.getBlockState(pos).getBlock() == Blocks.ENDER_CHEST) {
+            if (held.isEmpty() || !isTrackedItem(held.getItem())) return InteractionResult.PASS;
             pendingDeposits.add(new PendingDeposit(
                     held.getItem(),
                     countItemInInventory(mc, held.getItem())
             ));
-        } else if (mc.theWorld.getBlockState(mop.getBlockPos()).getBlock() == Blocks.chest) {
+        } else if (world.getBlockState(pos).getBlock() == Blocks.CHEST) {
             teamChestInteractionWarmup = 100;
         }
+
+        return InteractionResult.PASS;
     }
 
-    // Read authoritative totals from chat
-    @SubscribeEvent
-    public void onChat(ClientChatReceivedEvent event) {
-        if (event.message == null) return;
-
-        String raw = event.message.getUnformattedText();
+    private void onChat(String raw) {
         if (raw == null) return;
 
-        String msg = StringUtils.stripControlCodes(raw);
+        String msg = StringUtil.stripColor(raw);
 
         if (teamChestInteractionWarmup > 0 && msg.contains("Team Chest")) {
-            // Extract the total number from (number) or (number total)
+
             Matcher totalMatcher = TOTAL_NUMBER_PATTERN.matcher(msg);
             if (totalMatcher.find()) {
                 int total = Integer.parseInt(totalMatcher.group(1));
-                
-                // Search the entire message for material names
+
                 if (MATERIAL_PATTERNS[0].matcher(msg).find()) {
                     teamChestIron = total;
                 } else if (MATERIAL_PATTERNS[1].matcher(msg).find()) {
@@ -143,27 +136,24 @@ public class ResourceTracker {
                 } else if (MATERIAL_PATTERNS[3].matcher(msg).find()) {
                     teamChestEmerald = total;
                 }
-                
+
                 teamChestInteractionWarmup = 0;
             }
         }
     }
 
-    @SubscribeEvent
-    public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
+    private void onClientTick() {
+        Minecraft mc = Minecraft.getInstance();
 
-        Minecraft mc = Minecraft.getMinecraft();
-
-        if (mc.thePlayer == null || mc.theWorld == null) {
+        if (mc.player == null || mc.level == null) {
             active = false;
             resetAll();
             lastWorldRef = null;
             return;
         }
 
-        if (lastWorldRef != mc.theWorld) {
-            lastWorldRef = mc.theWorld;
+        if (lastWorldRef != mc.level) {
+            lastWorldRef = mc.level;
             resetAll();
         }
 
@@ -191,13 +181,12 @@ public class ResourceTracker {
         }
 
         Counts chestCounts =
-                inEnderGui ? countOpenEnderChestContainer(mc)
+                inEnderGui ? countOpenChestContainer(mc)
                         : new Counts();
 
         if (enderGuiWarmup > 0) {
             enderGuiWarmup--;
-        }
-        else if (inEnderGui) {
+        } else if (inEnderGui) {
             lastIronBase = chestCounts.iron;
             lastGoldBase = chestCounts.gold;
             lastDiaBase = chestCounts.diamond;
@@ -215,11 +204,10 @@ public class ResourceTracker {
         if (inTeamChestGui) {
             teamChestInteractionWarmup = 100;
         }
-        Counts teamCounts = inTeamChestGui ? countOpenTeamChestContainer(mc) : new Counts();
+        Counts teamCounts = inTeamChestGui ? countOpenChestContainer(mc) : new Counts();
         if (teamChestGuiWarmup > 0) {
             teamChestGuiWarmup--;
-        }
-        else if (inTeamChestGui) {
+        } else if (inTeamChestGui) {
             teamChestIron = teamCounts.iron;
             teamChestGold = teamCounts.gold;
             teamChestDiamond = teamCounts.diamond;
@@ -239,16 +227,16 @@ public class ResourceTracker {
 
             if (diff > 0) {
 
-                if (pd.item == Items.iron_ingot)
+                if (pd.item == Items.IRON_INGOT)
                     lastIronBase += diff;
 
-                else if (pd.item == Items.gold_ingot)
+                else if (pd.item == Items.GOLD_INGOT)
                     lastGoldBase += diff;
 
-                else if (pd.item == Items.diamond)
+                else if (pd.item == Items.DIAMOND)
                     lastDiaBase += diff;
 
-                else if (pd.item == Items.emerald)
+                else if (pd.item == Items.EMERALD)
                     lastEmeBase += diff;
 
                 it.remove();
@@ -256,216 +244,96 @@ public class ResourceTracker {
         }
     }
 
+    private String openChestTitle(Minecraft mc) {
+        Object screenObj = ReflectUtil.getScreen(mc);
+        if (!(screenObj instanceof AbstractContainerScreen<?> screen)) return null;
+        if (!(mc.player.containerMenu instanceof ChestMenu)) return null;
+
+        String name = screen.getTitle() != null ? screen.getTitle().getString() : "";
+        return StringUtil.stripColor(name).toLowerCase();
+    }
+
     private boolean isEnderChestGuiOpen(Minecraft mc) {
-        if (!(mc.currentScreen instanceof GuiChest))
-            return false;
-
-        Container container = mc.thePlayer.openContainer;
-
-        if (!(container instanceof ContainerChest))
-            return false;
-
-        ContainerChest chest =
-                (ContainerChest) container;
-
-        IInventory lower =
-                chest.getLowerChestInventory();
-
-        String name =
-                lower.getDisplayName() != null
-                        ? lower.getDisplayName()
-                        .getUnformattedText()
-                        : "";
-
-        name =
-                StringUtils
-                        .stripControlCodes(name)
-                        .toLowerCase();
-
-        return name.contains("ender chest");
+        String name = openChestTitle(mc);
+        return name != null && name.contains("ender chest");
     }
 
     private boolean isTeamChestGuiOpen(Minecraft mc) {
-        if (!(mc.currentScreen instanceof GuiChest))
-            return false;
-
-        Container container = mc.thePlayer.openContainer;
-
-        if (!(container instanceof ContainerChest))
-            return false;
-
-        ContainerChest chest =
-                (ContainerChest) container;
-
-        IInventory lower =
-                chest.getLowerChestInventory();
-
-        String name =
-                lower.getDisplayName() != null
-                        ? lower.getDisplayName()
-                        .getUnformattedText()
-                        : "";
-
-        name =
-                StringUtils
-                        .stripControlCodes(name)
-                        .toLowerCase();
-
-        return name.contains("chest") && !name.contains("ender");
+        String name = openChestTitle(mc);
+        return name != null && name.contains("chest") && !name.contains("ender");
     }
 
-    private Counts countOpenEnderChestContainer(
-            Minecraft mc
-    ) {
-
+    private Counts countOpenChestContainer(Minecraft mc) {
         Counts c = new Counts();
 
-        Container container =
-                mc.thePlayer.openContainer;
+        AbstractContainerMenu menu = mc.player.containerMenu;
+        if (!(menu instanceof ChestMenu)) return c;
 
-        if (!(container instanceof ContainerChest))
-            return c;
+        int chestSlotCount = menu.slots.size() - PLAYER_INVENTORY_SLOTS;
 
-        ContainerChest chest =
-                (ContainerChest) container;
+        for (int i = 0; i < chestSlotCount; i++) {
+            ItemStack stack = menu.getSlot(i).getItem();
 
-        IInventory lower =
-                chest.getLowerChestInventory();
-
-        for (int i = 0;
-             i < lower.getSizeInventory();
-             i++) {
-
-            ItemStack stack =
-                    lower.getStackInSlot(i);
-
-            if (stack == null)
+            if (stack.isEmpty())
                 continue;
 
-            if (stack.getItem()
-                    == Items.iron_ingot)
-                c.iron += stack.stackSize;
+            if (stack.getItem() == Items.IRON_INGOT)
+                c.iron += stack.getCount();
 
-            else if (stack.getItem()
-                    == Items.gold_ingot)
-                c.gold += stack.stackSize;
+            else if (stack.getItem() == Items.GOLD_INGOT)
+                c.gold += stack.getCount();
 
-            else if (stack.getItem()
-                    == Items.diamond)
-                c.diamond += stack.stackSize;
+            else if (stack.getItem() == Items.DIAMOND)
+                c.diamond += stack.getCount();
 
-            else if (stack.getItem()
-                    == Items.emerald)
-                c.emerald += stack.stackSize;
-        }
-
-        return c;
-    }
-
-    private Counts countOpenTeamChestContainer(
-            Minecraft mc
-    ) {
-
-        Counts c = new Counts();
-
-        Container container =
-                mc.thePlayer.openContainer;
-
-        if (!(container instanceof ContainerChest))
-            return c;
-
-        ContainerChest chest =
-                (ContainerChest) container;
-
-        IInventory lower =
-                chest.getLowerChestInventory();
-
-        for (int i = 0;
-             i < lower.getSizeInventory();
-             i++) {
-
-            ItemStack stack =
-                    lower.getStackInSlot(i);
-
-            if (stack == null)
-                continue;
-
-            if (stack.getItem()
-                    == Items.iron_ingot)
-                c.iron += stack.stackSize;
-
-            else if (stack.getItem()
-                    == Items.gold_ingot)
-                c.gold += stack.stackSize;
-
-            else if (stack.getItem()
-                    == Items.diamond)
-                c.diamond += stack.stackSize;
-
-            else if (stack.getItem()
-                    == Items.emerald)
-                c.emerald += stack.stackSize;
+            else if (stack.getItem() == Items.EMERALD)
+                c.emerald += stack.getCount();
         }
 
         return c;
     }
 
     private boolean isTrackedItem(Item item) {
-        return item == Items.iron_ingot
-                || item == Items.gold_ingot
-                || item == Items.diamond
-                || item == Items.emerald;
+        return item == Items.IRON_INGOT
+                || item == Items.GOLD_INGOT
+                || item == Items.DIAMOND
+                || item == Items.EMERALD;
     }
 
-    private int countItemInInventory(
-            Minecraft mc,
-            Item item
-    ) {
-
+    private int countItemInInventory(Minecraft mc, Item item) {
         int total = 0;
 
-        for (ItemStack stack :
-                mc.thePlayer.inventory
-                        .mainInventory) {
-
-            if (stack == null)
+        for (int i = 0; i < PLAYER_INVENTORY_SLOTS; i++) {
+            ItemStack stack = mc.player.getInventory().getItem(i);
+            if (stack.isEmpty())
                 continue;
 
             if (stack.getItem() == item)
-                total += stack.stackSize;
+                total += stack.getCount();
         }
 
         return total;
     }
 
-    private Counts countPlayerInventory(
-            Minecraft mc
-    ) {
-
+    private Counts countPlayerInventory(Minecraft mc) {
         Counts c = new Counts();
 
-        for (ItemStack stack :
-                mc.thePlayer.inventory
-                        .mainInventory) {
-
-            if (stack == null)
+        for (int i = 0; i < PLAYER_INVENTORY_SLOTS; i++) {
+            ItemStack stack = mc.player.getInventory().getItem(i);
+            if (stack.isEmpty())
                 continue;
 
-            if (stack.getItem()
-                    == Items.iron_ingot)
-                c.iron += stack.stackSize;
+            if (stack.getItem() == Items.IRON_INGOT)
+                c.iron += stack.getCount();
 
-            else if (stack.getItem()
-                    == Items.gold_ingot)
-                c.gold += stack.stackSize;
+            else if (stack.getItem() == Items.GOLD_INGOT)
+                c.gold += stack.getCount();
 
-            else if (stack.getItem()
-                    == Items.diamond)
-                c.diamond += stack.stackSize;
+            else if (stack.getItem() == Items.DIAMOND)
+                c.diamond += stack.getCount();
 
-            else if (stack.getItem()
-                    == Items.emerald)
-                c.emerald += stack.stackSize;
+            else if (stack.getItem() == Items.EMERALD)
+                c.emerald += stack.getCount();
         }
 
         return c;

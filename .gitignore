@@ -1,11 +1,26 @@
-/build/
-/.gradle/
-/run/
-*.iml
+# Gradle
+.gradle/
+build/
+*/build/
+out/
+
+# Loom / Fabric
+run/
+*/run/
+.loom-cache/
+
+# Stonecutter
+.stonecutter-cache/
+.stonecutter/
+
+# IDEs
 .idea/
-src/.idea/
-LICENSE-TEMPLATE
-*.log
-runClient*.log
-gradle_fail.log
-META-INF/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db

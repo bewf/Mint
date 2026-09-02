@@ -1,38 +1,38 @@
 package me.bewf.mint.util;
 
-import me.bewf.mint.Mint;
+import me.bewf.mint.MintConstants;
 import me.bewf.mint.config.MintConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
+import org.polyfrost.oneconfig.api.event.v1.EventManager;
+import org.polyfrost.oneconfig.api.event.v1.events.TickEvent;
 
 public final class UpdateCheckListener {
 
     private boolean started = false;
 
-    @SubscribeEvent
-    public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
+    public void register() {
+        EventManager.INSTANCE.register(TickEvent.End.class, event -> onClientTick());
+    }
 
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc == null || mc.thePlayer == null) return;
+    private void onClientTick() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) return;
 
         if (started) return;
         started = true;
 
-        // Check if update checker is enabled in config
         if (MintConfig.INSTANCE != null && !MintConfig.INSTANCE.updateCheckerEnabled) {
             System.out.println("[Mint] Update checker disabled in config");
             return;
         }
 
         UpdateChecker.checkOnce(
-                Mint.MODRINTH_PROJECT_ID,
-                Mint.MODRINTH_SLUG,
-                Mint.NAME,
-                Mint.VERSION,
-                Mint.MC_VERSION,
-                Mint.LOADER
+                MintConstants.MODRINTH_PROJECT_ID,
+                MintConstants.MODRINTH_SLUG,
+                MintConstants.NAME,
+                MintConstants.VERSION,
+                RuntimeInfo.currentMinecraftVersion(),
+                MintConstants.LOADER
         );
     }
 }

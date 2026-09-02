@@ -1,44 +1,46 @@
 package me.bewf.mint.hud;
 
-import cc.polyfrost.oneconfig.hud.BasicHud;
-import cc.polyfrost.oneconfig.libs.universal.UMatrixStack;
 import me.bewf.mint.config.MintConfig;
+import me.bewf.mint.util.ReflectUtil;
 import me.bewf.mint.util.ResourceTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
-import net.minecraft.client.renderer.entity.RenderItem;
-import net.minecraft.init.Items;
-import net.minecraft.item.ItemStack;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import org.polyfrost.oneconfig.api.hud.v1.Hud;
+import org.polyfrost.oneconfig.api.hud.v1.LegacyHud;
+import org.polyfrost.polyui.color.PolyColor;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class ResourceIconHud extends BasicHud {
+public class ResourceIconHud extends LegacyHud {
 
     public ResourceIconHud() {
-        super(true);
+        super("mint_resource_hud.json", "Resource Tracker", Hud.Category.getPLAYER());
     }
 
     @Override
-    public void draw(UMatrixStack matrices, float x, float y, float scale, boolean example) {
+    public boolean update() {
+        return true;
+    }
+
+    @Override
+    public void render(GuiGraphicsExtractor graphics) {
+        boolean example = isExamplePreview();
         boolean allow = ResourceTracker.isActive() || safeShowOutsideBedwars();
         if (!allow && !example) return;
 
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc == null || mc.fontRendererObj == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.font == null) return;
 
-        FontRenderer fr = mc.fontRendererObj;
-        RenderItem ri = mc.getRenderItem();
+        Font font = mc.font;
 
-        float iconScale = scale * 0.90f;
-
-        int lineH = Math.round(18f * scale);
-        int iconSize = Math.round(16f * iconScale);
-
-        int iconPad = Math.round(2f * scale);
-        int horizontalGap = Math.round(3f * scale);
+        int lineH = 18;
+        int iconSize = 16;
+        int iconPad = 2;
+        int horizontalGap = 3;
 
         boolean horizontal = safeHorizontalLayout();
 
@@ -46,58 +48,55 @@ public class ResourceIconHud extends BasicHud {
         if (rows.isEmpty()) return;
 
         if (horizontal) {
-            float cx = x;
+            int cx = 0;
             for (int i = 0; i < rows.size(); i++) {
                 Row row = rows.get(i);
-                float rowW = drawRow(fr, ri, cx, y, scale, iconScale, iconSize, iconPad, row.icon, row.inv, row.ec, row.tc);
+                int rowW = drawRow(graphics, font, cx, 0, iconSize, iconPad, row.icon, row.inv, row.ec, row.tc);
                 cx += rowW;
                 if (i != rows.size() - 1) cx += horizontalGap;
             }
         } else {
             int r = 0;
             for (Row row : rows) {
-                drawRow(fr, ri, x, y + r * lineH, scale, iconScale, iconSize, iconPad, row.icon, row.inv, row.ec, row.tc);
+                drawRow(graphics, font, 0, r * lineH, iconSize, iconPad, row.icon, row.inv, row.ec, row.tc);
                 r++;
             }
         }
     }
 
     private List<Row> buildRows(boolean example) {
-        List<Row> rows = new ArrayList<Row>();
+        List<Row> rows = new ArrayList<>();
 
         boolean teamChest = safeTrackTeamChest();
 
-        // inventory counts
         int ironInv = example ? 10 : ResourceTracker.ironInv;
         int goldInv = example ? 10 : ResourceTracker.goldInv;
-        int diaInv  = example ? 10 : ResourceTracker.diaInv;
-        int emeInv  = example ? 10 : ResourceTracker.emeInv;
+        int diaInv = example ? 10 : ResourceTracker.diaInv;
+        int emeInv = example ? 10 : ResourceTracker.emeInv;
 
-        // ender chest counts
         int ironEc = example ? 0 : ResourceTracker.ironEc;
         int goldEc = example ? 0 : ResourceTracker.goldEc;
-        int diaEc  = example ? 0 : ResourceTracker.diaEc;
-        int emeEc  = example ? 0 : ResourceTracker.emeEc;
+        int diaEc = example ? 0 : ResourceTracker.diaEc;
+        int emeEc = example ? 0 : ResourceTracker.emeEc;
 
-        // team chest counts
         int ironTc = example ? 0 : (teamChest ? ResourceTracker.teamChestIron : 0);
         int goldTc = example ? 0 : (teamChest ? ResourceTracker.teamChestGold : 0);
-        int diaTc  = example ? 0 : (teamChest ? ResourceTracker.teamChestDiamond : 0);
-        int emeTc  = example ? 0 : (teamChest ? ResourceTracker.teamChestEmerald : 0);
+        int diaTc = example ? 0 : (teamChest ? ResourceTracker.teamChestDiamond : 0);
+        int emeTc = example ? 0 : (teamChest ? ResourceTracker.teamChestEmerald : 0);
 
         boolean hideZero = safeHideWhenZero();
 
         if (safeShowIron() && shouldShowRow(ironInv + ironEc + ironTc, hideZero, example)) {
-            rows.add(new Row(new ItemStack(Items.iron_ingot), ironInv, ironEc, ironTc));
+            rows.add(new Row(new ItemStack(Items.IRON_INGOT), ironInv, ironEc, ironTc));
         }
         if (safeShowGold() && shouldShowRow(goldInv + goldEc + goldTc, hideZero, example)) {
-            rows.add(new Row(new ItemStack(Items.gold_ingot), goldInv, goldEc, goldTc));
+            rows.add(new Row(new ItemStack(Items.GOLD_INGOT), goldInv, goldEc, goldTc));
         }
         if (safeShowDiamond() && shouldShowRow(diaInv + diaEc + diaTc, hideZero, example)) {
-            rows.add(new Row(new ItemStack(Items.diamond), diaInv, diaEc, diaTc));
+            rows.add(new Row(new ItemStack(Items.DIAMOND), diaInv, diaEc, diaTc));
         }
         if (safeShowEmerald() && shouldShowRow(emeInv + emeEc + emeTc, hideZero, example)) {
-            rows.add(new Row(new ItemStack(Items.emerald), emeInv, emeEc, emeTc));
+            rows.add(new Row(new ItemStack(Items.EMERALD), emeInv, emeEc, emeTc));
         }
 
         return rows;
@@ -109,50 +108,33 @@ public class ResourceIconHud extends BasicHud {
         return total != 0;
     }
 
-    private float drawRow(FontRenderer fr, RenderItem ri,
-                          float x, float y, float textScale, float iconScale, int iconSize, int iconPad,
-                          ItemStack icon, int inv, int ec, int tc) {
+    private int drawRow(GuiGraphicsExtractor graphics, Font font,
+                        int x, int y, int iconSize, int iconPad,
+                        ItemStack icon, int inv, int ec, int tc) {
 
-        int fontH = fr.FONT_HEIGHT;
+        int fontH = font.lineHeight;
+        int rowH = 18;
+        int iconY = y + (rowH - iconSize) / 2;
 
-        float rowH = 18f * textScale;
-        float iconY = y + (rowH - (16f * iconScale)) / 2f;
+        graphics.item(icon, x, iconY);
 
-        // draw icon
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(x, iconY, 0f);
-        GlStateManager.scale(iconScale, iconScale, 1f);
+        int textX = x + iconSize + iconPad;
+        int textY = y + (rowH - fontH) / 2;
 
-        RenderHelper.enableGUIStandardItemLighting();
-        ri.renderItemAndEffectIntoGUI(icon, 0, 0);
-        RenderHelper.disableStandardItemLighting();
-
-        GlStateManager.popMatrix();
-
-        float textX = x + iconSize + iconPad;
-        float textY = y + (rowH - (fontH * textScale)) / 2f;
-
-        // draw text
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(textX, textY, 0f);
-        GlStateManager.scale(textScale, textScale, 1f);
-
-        float drawn;
+        int drawn;
 
         if (!safeStorageColors()) {
             String full = buildPlainText(inv, ec, tc);
-            fr.drawStringWithShadow(full, 0, 0, 0xFFFFFF);
-            drawn = fr.getStringWidth(full) * textScale;
+            graphics.text(font, full, textX, textY, 0xFFFFFFFF, true);
+            drawn = font.width(full);
         } else {
-            drawn = drawColoredText(fr, 0, 0, inv, ec, tc, textScale);
+            drawn = drawColoredText(graphics, font, textX, textY, inv, ec, tc);
         }
 
-        GlStateManager.popMatrix();
-
-        return (iconSize + iconPad + drawn);
+        return iconSize + iconPad + drawn;
     }
 
-    private float drawColoredText(FontRenderer fr, float x, float y, int inv, int ec, int tc, float textScale) {
+    private int drawColoredText(GuiGraphicsExtractor graphics, Font font, int x, int y, int inv, int ec, int tc) {
         int invColor = safeInventoryColor();
         int ecColor = safeEnderChestColor();
         int tcColor = safeTeamChestColor();
@@ -167,63 +149,60 @@ public class ResourceIconHud extends BasicHud {
         String tcS = formatCount(tc);
         String totalS = formatCount(inv + ec + tc);
 
-        float cx = x;
+        int cx = x;
 
-        // If only one has value, show it directly
         if (inv > 0 && ec <= 0 && tc <= 0) {
-            fr.drawStringWithShadow(invS, cx, y, invColor);
-            return fr.getStringWidth(invS) * textScale;
+            graphics.text(font, invS, cx, y, invColor, true);
+            return font.width(invS);
         }
         if (inv <= 0 && ec > 0 && tc <= 0) {
-            fr.drawStringWithShadow(ecS, cx, y, ecColor);
-            return fr.getStringWidth(ecS) * textScale;
+            graphics.text(font, ecS, cx, y, ecColor, true);
+            return font.width(ecS);
         }
         if (inv <= 0 && ec <= 0 && tc > 0) {
-            fr.drawStringWithShadow(tcS, cx, y, tcColor);
-            return fr.getStringWidth(tcS) * textScale;
+            graphics.text(font, tcS, cx, y, tcColor, true);
+            return font.width(tcS);
         }
 
-        // If all zero
         if (inv <= 0 && ec <= 0 && tc <= 0) {
-            fr.drawStringWithShadow("0", cx, y, totalColor);
-            return fr.getStringWidth("0") * textScale;
+            graphics.text(font, "0", cx, y, totalColor, true);
+            return font.width("0");
         }
 
-        // Build the expression
         boolean hasInv = inv > 0;
         boolean hasEc = ec > 0;
         boolean hasTc = tc > 0;
 
         if (hasInv) {
-            fr.drawStringWithShadow(invS, cx, y, invColor);
-            cx += fr.getStringWidth(invS);
+            graphics.text(font, invS, cx, y, invColor, true);
+            cx += font.width(invS);
         }
 
         if (hasEc) {
             if (hasInv) {
-                fr.drawStringWithShadow(add, cx, y, sepColor);
-                cx += fr.getStringWidth(add);
+                graphics.text(font, add, cx, y, sepColor, true);
+                cx += font.width(add);
             }
-            fr.drawStringWithShadow(ecS, cx, y, ecColor);
-            cx += fr.getStringWidth(ecS);
+            graphics.text(font, ecS, cx, y, ecColor, true);
+            cx += font.width(ecS);
         }
 
         if (hasTc) {
             if (hasInv || hasEc) {
-                fr.drawStringWithShadow(add, cx, y, sepColor);
-                cx += fr.getStringWidth(add);
+                graphics.text(font, add, cx, y, sepColor, true);
+                cx += font.width(add);
             }
-            fr.drawStringWithShadow(tcS, cx, y, tcColor);
-            cx += fr.getStringWidth(tcS);
+            graphics.text(font, tcS, cx, y, tcColor, true);
+            cx += font.width(tcS);
         }
 
-        fr.drawStringWithShadow(eq, cx, y, sepColor);
-        cx += fr.getStringWidth(eq);
+        graphics.text(font, eq, cx, y, sepColor, true);
+        cx += font.width(eq);
 
-        fr.drawStringWithShadow(totalS, cx, y, totalColor);
-        cx += fr.getStringWidth(totalS);
+        graphics.text(font, totalS, cx, y, totalColor, true);
+        cx += font.width(totalS);
 
-        return (cx - x) * textScale;
+        return cx - x;
     }
 
     private String buildPlainText(int inv, int ec, int tc) {
@@ -271,19 +250,20 @@ public class ResourceIconHud extends BasicHud {
         return rounded + "k";
     }
 
-    @Override
-    public float getWidth(float scale, boolean example) {
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc == null || mc.fontRendererObj == null) return 90f * scale;
+    public float getWidth() {
+        Minecraft mc = Minecraft.getInstance();
+        boolean example = isExamplePreview();
 
-        int iconSize = Math.round(16f * (scale * 0.90f));
-        int iconPad = Math.round(2f * scale);
-        int horizontalGap = Math.round(3f * scale);
+        if (mc == null || mc.font == null) return 90;
+
+        int iconSize = 16;
+        int iconPad = 2;
+        int horizontalGap = 3;
 
         boolean horizontal = safeHorizontalLayout();
         List<Row> rows = buildRows(example);
 
-        if (rows.isEmpty() && !example) return 0f;
+        if (rows.isEmpty() && !example) return 0;
         if (rows.isEmpty()) rows = buildRows(true);
 
         if (horizontal) {
@@ -293,7 +273,7 @@ public class ResourceIconHud extends BasicHud {
                 Row r = rows.get(i);
                 String text = buildPlainText(r.inv, r.ec, r.tc);
 
-                sum += iconSize + iconPad + mc.fontRendererObj.getStringWidth(text);
+                sum += iconSize + iconPad + mc.font.width(text);
 
                 if (i != rows.size() - 1) {
                     sum += horizontalGap;
@@ -308,7 +288,7 @@ public class ResourceIconHud extends BasicHud {
             for (Row r : rows) {
                 String text = buildPlainText(r.inv, r.ec, r.tc);
 
-                int w = iconSize + iconPad + mc.fontRendererObj.getStringWidth(text);
+                int w = iconSize + iconPad + mc.font.width(text);
 
                 if (w > max) {
                     max = w;
@@ -319,20 +299,24 @@ public class ResourceIconHud extends BasicHud {
         }
     }
 
-    @Override
-    public float getHeight(float scale, boolean example) {
+    public float getHeight() {
+        boolean example = isExamplePreview();
         boolean horizontal = safeHorizontalLayout();
-        int lineH = Math.round(18f * scale);
+        int lineH = 18;
 
         List<Row> rows = buildRows(example);
 
-        if (rows.isEmpty() && !example) return 0f;
+        if (rows.isEmpty() && !example) return 0;
 
         if (horizontal) {
             return lineH;
         } else {
             return lineH * (rows.isEmpty() ? 1 : rows.size());
         }
+    }
+
+    private boolean isExamplePreview() {
+        return false;
     }
 
     private boolean safeShowOutsideBedwars() {
@@ -387,32 +371,31 @@ public class ResourceIconHud extends BasicHud {
 
     private int safeInventoryColor() {
         MintConfig cfg = safeConfig();
-        if (cfg == null || cfg.inventoryColor == null) return 0xE8D9C2;
-        try { return cfg.inventoryColor.getRGB(); } catch (Throwable t) { return 0xE8D9C2; }
+        return argb(cfg == null ? null : cfg.inventoryColor, 0xFFE8D9C2);
     }
 
     private int safeEnderChestColor() {
         MintConfig cfg = safeConfig();
-        if (cfg == null || cfg.enderChestColor == null) return 0xBE3FFF;
-        try { return cfg.enderChestColor.getRGB(); } catch (Throwable t) { return 0xBE3FFF; }
+        return argb(cfg == null ? null : cfg.enderChestColor, 0xFFBE3FFF);
     }
 
     private int safeTeamChestColor() {
         MintConfig cfg = safeConfig();
-        if (cfg == null || cfg.teamChestColor == null) return 0x55AAFF;
-        try { return cfg.teamChestColor.getRGB(); } catch (Throwable t) { return 0x55AAFF; }
+        return argb(cfg == null ? null : cfg.teamChestColor, 0xFF55AAFF);
     }
 
     private int safeTotalColor() {
         MintConfig cfg = safeConfig();
-        if (cfg == null || cfg.totalColor == null) return 0xFFFFFF;
-        try { return cfg.totalColor.getRGB(); } catch (Throwable t) { return 0xFFFFFF; }
+        return argb(cfg == null ? null : cfg.totalColor, 0xFFFFFFFF);
     }
 
     private int safeSeparatorColor() {
         MintConfig cfg = safeConfig();
-        if (cfg == null || cfg.separatorColor == null) return 0xAAAAAA;
-        try { return cfg.separatorColor.getRGB(); } catch (Throwable t) { return 0xAAAAAA; }
+        return argb(cfg == null ? null : cfg.separatorColor, 0xFFAAAAAA);
+    }
+
+    private static int argb(PolyColor c, int fallbackArgb) {
+        return ReflectUtil.colorToArgb(c, fallbackArgb);
     }
 
     private String safeAdditionLabel() {
