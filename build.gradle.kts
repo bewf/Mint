@@ -54,7 +54,6 @@ dependencies {
     for (module in arrayOf("config", "config-impl", "events", "hud", "internal", "ui", "utils")) {
         implementation("org.polyfrost.oneconfig:$module:$oneconfigversion")
     }
-    implementation("org.polyfrost:polyui:${sc.properties.get<String>("deps.polyui")}")
 
     for (module in arrayOf("fabric-events-interaction-v0", "fabric-message-api-v1", "fabric-lifecycle-events-v1")) {
         modImplementation(fabricApi.module(module, fapiversion))

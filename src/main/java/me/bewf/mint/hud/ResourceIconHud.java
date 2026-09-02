@@ -1,24 +1,47 @@
 package me.bewf.mint.hud;
 
 import me.bewf.mint.config.MintConfig;
-import me.bewf.mint.util.ReflectUtil;
 import me.bewf.mint.util.ResourceTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.polyfrost.oneconfig.api.config.v1.annotations.Dropdown;
 import org.polyfrost.oneconfig.api.hud.v1.Hud;
+import org.polyfrost.oneconfig.api.hud.v1.HudAnchor;
 import org.polyfrost.oneconfig.api.hud.v1.LegacyHud;
-import org.polyfrost.polyui.color.PolyColor;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ResourceIconHud extends LegacyHud {
 
+    private static final HudAnchor[] ANCHOR_OPTIONS = {
+            HudAnchor.Auto, HudAnchor.Left, HudAnchor.Right, HudAnchor.Top, HudAnchor.Bottom
+    };
+
+    @Dropdown(
+            title = "Anchor",
+            description = "Pins this HUD to one side of the screen so it only grows away from that edge.",
+            options = {"Auto", "Left", "Right", "Top", "Bottom"}
+    )
+    public int anchorSide = 0;
+
     public ResourceIconHud() {
         super("mint_resource_hud.json", "Resource Tracker", Hud.Category.getPLAYER());
+    }
+
+    @Override
+    public void setup() {
+        applyAnchorSide();
+        addCallback("anchorSide", this::applyAnchorSide);
+    }
+
+    private void applyAnchorSide() {
+        int idx = anchorSide;
+        if (idx < 0 || idx >= ANCHOR_OPTIONS.length) idx = 0;
+        setGrowthAnchorKeepingPosition(ANCHOR_OPTIONS[idx]);
     }
 
     @Override
@@ -371,31 +394,27 @@ public class ResourceIconHud extends LegacyHud {
 
     private int safeInventoryColor() {
         MintConfig cfg = safeConfig();
-        return argb(cfg == null ? null : cfg.inventoryColor, 0xFFE8D9C2);
+        return cfg == null ? 0xFFE8D9C2 : cfg.inventoryColor;
     }
 
     private int safeEnderChestColor() {
         MintConfig cfg = safeConfig();
-        return argb(cfg == null ? null : cfg.enderChestColor, 0xFFBE3FFF);
+        return cfg == null ? 0xFFBE3FFF : cfg.enderChestColor;
     }
 
     private int safeTeamChestColor() {
         MintConfig cfg = safeConfig();
-        return argb(cfg == null ? null : cfg.teamChestColor, 0xFF55AAFF);
+        return cfg == null ? 0xFF55AAFF : cfg.teamChestColor;
     }
 
     private int safeTotalColor() {
         MintConfig cfg = safeConfig();
-        return argb(cfg == null ? null : cfg.totalColor, 0xFFFFFFFF);
+        return cfg == null ? 0xFFFFFFFF : cfg.totalColor;
     }
 
     private int safeSeparatorColor() {
         MintConfig cfg = safeConfig();
-        return argb(cfg == null ? null : cfg.separatorColor, 0xFFAAAAAA);
-    }
-
-    private static int argb(PolyColor c, int fallbackArgb) {
-        return ReflectUtil.colorToArgb(c, fallbackArgb);
+        return cfg == null ? 0xFFAAAAAA : cfg.separatorColor;
     }
 
     private String safeAdditionLabel() {

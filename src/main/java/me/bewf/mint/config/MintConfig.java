@@ -2,7 +2,6 @@ package me.bewf.mint.config;
 
 import me.bewf.mint.MintConstants;
 import me.bewf.mint.util.NotificationManager;
-import me.bewf.mint.util.ReflectUtil;
 import me.bewf.mint.util.RuntimeInfo;
 import me.bewf.mint.util.UpdateChecker;
 import org.polyfrost.oneconfig.api.config.v1.Config;
@@ -11,7 +10,6 @@ import org.polyfrost.oneconfig.api.config.v1.annotations.Checkbox;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Color;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Include;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Text;
-import org.polyfrost.polyui.color.PolyColor;
 
 public class MintConfig extends Config {
 
@@ -62,35 +60,35 @@ public class MintConfig extends Config {
             category = "HUD",
             subcategory = "Colors"
     )
-    public PolyColor inventoryColor = ReflectUtil.makeColor(0xE8D9C2FF);
+    public int inventoryColor = 0xFFE8D9C2;
 
     @Color(
             title = "Ender Chest Color",
             category = "HUD",
             subcategory = "Colors"
     )
-    public PolyColor enderChestColor = ReflectUtil.makeColor(0xBE3FFFFF);
+    public int enderChestColor = 0xFFBE3FFF;
 
     @Color(
             title = "Team Chest Color",
             category = "HUD",
             subcategory = "Colors"
     )
-    public PolyColor teamChestColor = ReflectUtil.makeColor(0x55AAFFFF);
+    public int teamChestColor = 0xFF55AAFF;
 
     @Color(
             title = "Total Color",
             category = "HUD",
             subcategory = "Colors"
     )
-    public PolyColor totalColor = ReflectUtil.makeColor(0xFFFFFFFF);
+    public int totalColor = 0xFFFFFFFF;
 
     @Color(
             title = "Separator Color",
             category = "HUD",
             subcategory = "Colors"
     )
-    public PolyColor separatorColor = ReflectUtil.makeColor(0x787878FF);
+    public int separatorColor = 0xFF787878;
 
     @Checkbox(
             title = "Show Iron",
