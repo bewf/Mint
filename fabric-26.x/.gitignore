@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+*/build/
+out/
+
+# Loom / Fabric
+run/
+*/run/
+.loom-cache/
+
+# Stonecutter
+.stonecutter-cache/
+.stonecutter/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db

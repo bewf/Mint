@@ -9,15 +9,3 @@ LICENSE-TEMPLATE
 runClient*.log
 gradle_fail.log
 META-INF/
-
-.gradle/
-.idea/
-build/
-run/
-.kotlin/
-
-.gradle/
-.idea/
-build/
-run/
-.kotlin/

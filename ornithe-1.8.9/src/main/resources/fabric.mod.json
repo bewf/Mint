@@ -1,0 +1,28 @@
+{
+	"schemaVersion": 1,
+	"id": "mint",
+	"version": "${version}",
+	"name": "Mint",
+	"description": "Bedwars resource tracker",
+	"authors": [
+		"bewf"
+	],
+	"contact": {
+		"homepage": "https://modrinth.com/mod/mint-bedwars",
+		"issues": "https://github.com/bewf/Mint/issues",
+		"sources": "https://github.com/bewf/Mint"
+	},
+	"license": "LicenseRef-All-Rights-Reserved",
+	"icon": "assets/mint/minticon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"me.bewf.mint.MintClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "1.8.9",
+		"oneconfigv1": "*"
+	}
+}

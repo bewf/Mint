@@ -1,0 +1,124 @@
+plugins {
+	id 'java'
+	id 'org.jetbrains.kotlin.jvm' version '2.4.10'
+	id 'org.jetbrains.kotlin.plugin.compose' version '2.4.10'
+	id 'net.fabricmc.fabric-loom-remap' version '1.18.2'
+	id 'ploceus' version '1.18.1'
+}
+
+base {
+	archivesName = project.archives_base_name
+}
+version = "${project.mod_version}+${project.minecraft_version}"
+group = project.mod_group
+
+loom {
+	runs {
+		client {
+			property 'devauth.enabled', (project.findProperty('devauth') ?: 'true').toString()
+			property 'devauth.account', (project.findProperty('devauth_account') ?: 'main').toString()
+		}
+	}
+}
+
+ploceus {
+	setIntermediaryGeneration(2)
+}
+
+configurations.configureEach {
+	exclude group: 'org.lwjgl.lwjgl'
+}
+
+repositories {
+	mavenLocal()
+	mavenCentral()
+	google()
+	maven {
+		name = 'Polyfrost Releases'
+		url = 'https://repo.polyfrost.org/releases'
+	}
+	maven {
+		name = 'Polyfrost Snapshots'
+		url = 'https://repo.polyfrost.org/snapshots'
+	}
+	maven {
+		name = 'Sonatype Snapshots'
+		url = 'https://central.sonatype.com/repository/maven-snapshots'
+		content {
+			includeGroup 'net.kyori'
+		}
+	}
+	maven {
+		name = 'CloverClient'
+		url = 'https://maven.cloverclient.com/releases'
+		content {
+			includeGroup 'pl.tomgirl'
+		}
+	}
+	maven {
+		name = 'DevAuth'
+		url = 'https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1'
+		content {
+			includeGroup 'me.djtheredstoner'
+		}
+	}
+	maven {
+		name = 'Compose dev'
+		url = 'https://redirector.kotlinlang.org/maven/compose-dev'
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	mappings ploceus.featherMappings(project.feather_build)
+
+	ploceus.dependOsl(project.osl_version)
+
+	modImplementation "org.polyfrost.oneconfig:1.8.9-ornithe:${project.oneconfig_version}"
+	for (module in ["commands", "config", "config-impl", "events", "internal", "ui", "utils", "hud", "poly-compose"]) {
+		implementation "org.polyfrost.oneconfig:${module}:${project.oneconfig_version}"
+	}
+
+	compileOnly "org.jetbrains.compose.runtime:runtime-desktop:${project.compose_version}"
+	compileOnly "org.jetbrains.skiko:skiko-awt:${project.skiko_version}"
+	compileOnly "org.jetbrains.kotlinx:kotlinx-coroutines-core:${project.coroutines_version}"
+
+	modRuntimeOnly "me.djtheredstoner:DevAuth-fabric:${project.devauth_version}"
+}
+
+processResources {
+	inputs.property 'version', project.mod_version
+
+	filesMatching('fabric.mod.json') {
+		expand 'version': project.mod_version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.encoding = 'UTF-8'
+	it.options.release = 25
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+	compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+
+	withSourcesJar()
+
+	toolchain {
+		vendor = JvmVendorSpec.ADOPTIUM
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+jar {
+	from('LICENSE.md') {
+		rename { "${it}_${project.archives_base_name}" }
+	}
+}
