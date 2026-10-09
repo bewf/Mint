@@ -49,7 +49,7 @@ public class MintConfig extends Config {
             category = "HUD",
             subcategory = "Display"
     )
-    public boolean hideWhenZero = false;
+    public boolean hideWhenZero = true;
 
     /*
      * NEW: Team chest tracking toggle

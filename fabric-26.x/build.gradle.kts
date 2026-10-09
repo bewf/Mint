@@ -2,6 +2,8 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
     id("dev.kikugie.loom-back-compat")
+    id("org.jetbrains.kotlin.jvm") version "2.4.10"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.10"
     id("dev.deftu.gradle.bloom") version "0.2.0"
     id("me.modmuss50.mod-publish-plugin") version "2.2.0"
 }
@@ -14,6 +16,9 @@ val versionrange: String = sc.properties["mod.mc_compat"]
 val loaderversion: String = sc.properties["deps.fabric_loader"]
 val oneconfigversion: String = sc.properties["deps.oneconfig"]
 val fapiversion: String = sc.properties["deps.fabric_api"]
+val composeversion: String = sc.properties["deps.compose"]
+val skikoversion: String = sc.properties["deps.skiko"]
+val coroutinesversion: String = sc.properties["deps.coroutines"]
 
 version = "$modversion+$mcversion"
 base.archivesName = modid
@@ -31,6 +36,7 @@ repositories {
 
     mavenCentral()
     google()
+    maven("https://redirector.kotlinlang.org/maven/compose-dev")
     maven("https://repo.polyfrost.org/releases") { name = "Polyfrost Releases" }
     maven("https://repo.polyfrost.org/snapshots") { name = "Polyfrost Snapshots" }
     maven("https://central.sonatype.com/repository/maven-snapshots") {
@@ -51,9 +57,13 @@ dependencies {
     modImplementation("net.fabricmc:fabric-loader:$loaderversion")
 
     modImplementation("org.polyfrost.oneconfig:$mcversion-fabric:$oneconfigversion")
-    for (module in arrayOf("config", "config-impl", "events", "hud", "internal", "ui", "utils")) {
+    for (module in arrayOf("config", "config-impl", "events", "hud", "internal", "ui", "utils", "poly-compose")) {
         implementation("org.polyfrost.oneconfig:$module:$oneconfigversion")
     }
+
+    compileOnly("org.jetbrains.compose.runtime:runtime-desktop:$composeversion")
+    compileOnly("org.jetbrains.skiko:skiko-awt:$skikoversion")
+    compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesversion")
 
     for (module in arrayOf("fabric-events-interaction-v0", "fabric-message-api-v1", "fabric-lifecycle-events-v1")) {
         modImplementation(fabricApi.module(module, fapiversion))
@@ -89,6 +99,10 @@ java {
 
 tasks.withType<JavaCompile>().configureEach {
     options.release = requiredJava.majorVersion.toInt()
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
 }
 
 bloom {

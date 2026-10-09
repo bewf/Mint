@@ -22,9 +22,7 @@ plugins {
 
 stonecutter {
     create(rootProject) {
-        // Both branches build against the current codebase; 26.1 covers the
-        // 26.1.x patch line (including 26.1.2) and 26.2 covers the next major.
-        versions("26.1", "26.2")
+        versions("26.1", "26.2", "26.3")
 
         vcsVersion = "26.2"
     }

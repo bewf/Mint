@@ -8,10 +8,11 @@
         "bewf"
     ],
     "contact": {
+        "homepage": "https://modrinth.com/mod/mint-bedwars",
         "issues": "https://github.com/bewf/Mint/issues",
         "sources": "https://github.com/bewf/Mint"
     },
-    "license": "ARR",
+    "license": "LicenseRef-All-Rights-Reserved",
     "icon": "assets/mint/minticon.png",
     "environment": "client",
     "entrypoints": {
@@ -22,6 +23,6 @@
     "depends": {
         "fabricloader": ">=${loader_version}",
         "minecraft": "${minecraft_version_range}",
-        "oneconfigv1": ">=1.1.0"
+        "oneconfigv1": "*"
     }
 }

@@ -10,7 +10,7 @@ public final class MintConstants {
     public static final String NAME = "Mint";
 
     public static final String MC_VERSION = "1.8.9";
-    public static final String LOADER = "fabric";
+    public static final String LOADER = "ornithe";
 
     public static final String MODRINTH_PROJECT_ID = "Xy7IQDty";
     public static final String MODRINTH_SLUG = "mint-bedwars";

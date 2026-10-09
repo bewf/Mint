@@ -1,12 +1,14 @@
 mod.id = "mint"
 mod.name = "Mint"
 mod.group = "me.bewf"
-mod.version = "1.1.5"
+mod.version = "1.2.1"
 
 deps.fabric_loader = "0.19.3"
-deps.oneconfig = "1.1.4"
 deps.polyui = "2.1.7"
 deps.junit = "6.1.3"
+deps.compose = "1.12.1"
+deps.skiko = "0.999.6"
+deps.coroutines = "1.10.2"
 
 loomx.loom_version = "1.17-SNAPSHOT"
 
@@ -16,8 +18,16 @@ publish.modrinth = "Xy7IQDty"
 mod.mc_compat = "~26.1"
 mod.mc_releases = ["26.1", "26.1.1", "26.1.2"]
 deps.fabric_api = "0.155.2+26.1.2"
+deps.oneconfig = "1.2.22"
 
 ["26.2"]
 mod.mc_compat = "~26.2"
 mod.mc_releases = ["26.2"]
-deps.fabric_api = "0.157.0+26.2"
+deps.fabric_api = "0.161.0+26.2"
+deps.oneconfig = "1.2.18"
+
+["26.3"]
+mod.mc_compat = "~26.3"
+mod.mc_releases = ["26.3"]
+deps.fabric_api = "0.161.0+26.3"
+deps.oneconfig = "1.2.22"
