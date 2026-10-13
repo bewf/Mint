@@ -25,7 +25,7 @@ version = modVersion
 
 toolkitLoomHelper {
     useOneConfig {
-        version = "1.0.0-alpha.106"
+        version = "1.0.0-alpha.183"
         loaderVersion = "1.1.0-alpha.46"
 
         usePolyMixin = true
