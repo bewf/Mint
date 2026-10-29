@@ -20,6 +20,12 @@ public class MintConfig extends Config {
     public boolean showOutsideBedwars = false;
 
     @Checkbox(
+            title = "Sparkle",
+            category = "Debug"
+    )
+    public boolean fancyNames = true;
+
+    @Checkbox(
             title = "Update Checker",
             description = "Show update notification when joining the game.",
             category = "Debug",

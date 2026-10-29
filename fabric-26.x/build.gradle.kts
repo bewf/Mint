@@ -12,10 +12,12 @@ val modid: String = sc.properties["mod.id"]
 val modname: String = sc.properties["mod.name"]
 val modversion: String = sc.properties["mod.version"]
 val mcversion: String = sc.current.version
+val mcDependencyVersion: String = sc.properties.getOrNull<String>("deps.minecraft") ?: mcversion
 val versionrange: String = sc.properties["mod.mc_compat"]
 val loaderversion: String = sc.properties["deps.fabric_loader"]
 val oneconfigversion: String = sc.properties["deps.oneconfig"]
 val fapiversion: String = sc.properties["deps.fabric_api"]
+val devauthversion: String = sc.properties["deps.devauth"]
 val composeversion: String = sc.properties["deps.compose"]
 val skikoversion: String = sc.properties["deps.skiko"]
 val coroutinesversion: String = sc.properties["deps.coroutines"]
@@ -48,10 +50,15 @@ repositories {
     strictMaven("https://maven.fabricmc.net/", "FabricMC", "net.fabricmc")
     strictMaven("https://www.cursemaven.com", "CurseForge", "curse.maven")
     strictMaven("https://api.modrinth.com/maven", "Modrinth", "maven.modrinth")
+    strictMaven(
+        "https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1",
+        "DevAuth",
+        "me.djtheredstoner"
+    )
 }
 
 dependencies {
-    minecraft("com.mojang:minecraft:$mcversion")
+    minecraft("com.mojang:minecraft:$mcDependencyVersion")
     loomx.applyMojangMappings()
 
     modImplementation("net.fabricmc:fabric-loader:$loaderversion")
@@ -64,6 +71,8 @@ dependencies {
     compileOnly("org.jetbrains.compose.runtime:runtime-desktop:$composeversion")
     compileOnly("org.jetbrains.skiko:skiko-awt:$skikoversion")
     compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesversion")
+
+    modRuntimeOnly("me.djtheredstoner:DevAuth-fabric:$devauthversion")
 
     for (module in arrayOf("fabric-events-interaction-v0", "fabric-message-api-v1", "fabric-lifecycle-events-v1")) {
         modImplementation(fabricApi.module(module, fapiversion))
@@ -81,6 +90,8 @@ loom {
         preferGradleTask = true
         generateRunConfig = true
         runDirectory = rootProject.file("run")
+        // DevAuth is on by default for dev clients; pass -Pdevauth=false to turn it off
+        if (findProperty("devauth")?.toString() != "false") jvmArguments.add("-Ddevauth.enabled=true")
     }
 
     runConfigs.remove(runConfigs["server"])
@@ -132,6 +143,7 @@ tasks {
         inputs.properties(props)
 
         filesMatching("fabric.mod.json") { expand(props) }
+        filesMatching("mint.mixins.json") { expand("java" to "JAVA_${requiredJava.majorVersion}") }
     }
 
     jar {

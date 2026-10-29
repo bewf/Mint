@@ -20,6 +20,9 @@
             "me.bewf.mint.MintEntrypoint"
         ]
     },
+    "mixins": [
+        "mint.mixins.json"
+    ],
     "depends": {
         "fabricloader": ">=${loader_version}",
         "minecraft": "${minecraft_version_range}",

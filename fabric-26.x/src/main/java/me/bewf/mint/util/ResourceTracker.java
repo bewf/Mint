@@ -74,6 +74,7 @@ public class ResourceTracker {
     private static class PendingDeposit {
         Item item;
         int inventorySnapshot;
+        int age = 0;
 
         PendingDeposit(Item item, int snapshot) {
             this.item = item;
@@ -105,6 +106,10 @@ public class ResourceTracker {
 
         if (world.getBlockState(pos).getBlock() == Blocks.ENDER_CHEST) {
             if (held.isEmpty() || !isTrackedItem(held.getItem())) return InteractionResult.PASS;
+            // Several punches before the server removes the items would each count the same deposit
+            for (PendingDeposit existing : pendingDeposits) {
+                if (existing.item == held.getItem()) return InteractionResult.PASS;
+            }
             pendingDeposits.add(new PendingDeposit(
                     held.getItem(),
                     countItemInInventory(mc, held.getItem())
@@ -155,6 +160,7 @@ public class ResourceTracker {
         if (lastWorldRef != mc.level) {
             lastWorldRef = mc.level;
             resetAll();
+            System.out.println("[Mint] player " + mc.player.getName().getString() + " uuid " + mc.player.getUUID());
         }
 
         boolean debug = MintConfig.INSTANCE.showOutsideBedwars;
@@ -175,9 +181,12 @@ public class ResourceTracker {
         handlePendingDeposits(mc);
 
         boolean inEnderGui = isEnderChestGuiOpen(mc);
+        debugLog(mc, inEnderGui);
 
         if (inEnderGui && !wasEnderGui) {
             enderGuiWarmup = 2;
+            // The open chest is the real source of truth, so drop unconfirmed deposits
+            pendingDeposits.clear();
         }
 
         Counts chestCounts =
@@ -216,11 +225,37 @@ public class ResourceTracker {
         wasTeamGui = inTeamChestGui;
     }
 
+    private static String lastDebug = "";
+
+    private void debugLog(Minecraft mc, boolean inEnderGui) {
+        Object screenObj = ReflectUtil.getScreen(mc);
+        String screenName = screenObj == null ? "null" : screenObj.getClass().getName();
+        String menu = mc.player.containerMenu == null ? "null" : mc.player.containerMenu.getClass().getSimpleName();
+        String title = openChestTitle(mc);
+        String chestGold = "-";
+        if (screenObj instanceof AbstractContainerScreen<?> && mc.player.containerMenu instanceof ChestMenu) {
+            chestGold = String.valueOf(countOpenChestContainer(mc).gold);
+        }
+        String line = "screen=" + screenName + " menu=" + menu + " title=" + title
+                + " enderGui=" + inEnderGui + " chestGold=" + chestGold
+                + " goldEc=" + lastGoldBase + " pending=" + pendingDeposits.size();
+        if (!line.equals(lastDebug)) {
+            lastDebug = line;
+            System.out.println("[Mint] " + line);
+        }
+    }
+
     private void handlePendingDeposits(Minecraft mc) {
         Iterator<PendingDeposit> it = pendingDeposits.iterator();
 
         while (it.hasNext()) {
             PendingDeposit pd = it.next();
+
+            // The punch did not deposit anything (chest full, wrong item, etc.)
+            if (++pd.age > 100) {
+                it.remove();
+                continue;
+            }
 
             int now = countItemInInventory(mc, pd.item);
             int diff = pd.inventorySnapshot - now;

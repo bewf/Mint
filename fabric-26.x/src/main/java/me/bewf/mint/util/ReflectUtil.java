@@ -36,22 +36,68 @@ public final class ReflectUtil {
 
     public static Object getScreen(Object minecraftInstance) {
         if (minecraftInstance == null) return null;
-        try {
-            Field f = minecraftInstance.getClass().getField("screen");
-            return f.get(minecraftInstance);
-        } catch (Throwable ignored) {
-        }
-        for (Method m : minecraftInstance.getClass().getMethods()) {
-            if (m.getParameterCount() != 0) continue;
-            String lower = m.getName().toLowerCase();
-            if (!lower.contains("screen")) continue;
-            if (!m.getReturnType().getSimpleName().toLowerCase().contains("screen")) continue;
+        Class<?> c = minecraftInstance.getClass();
+
+        // Field named "screen" on the class or any superclass, public or not
+        for (Class<?> k = c; k != null; k = k.getSuperclass()) {
             try {
-                m.setAccessible(true);
-                return m.invoke(minecraftInstance);
+                Field f = k.getDeclaredField("screen");
+                f.setAccessible(true);
+                return f.get(minecraftInstance);
             } catch (Throwable ignored) {
             }
         }
+
+        // 26.2+ moved the current screen onto Minecraft#gui (Gui#screen())
+        Object gui = null;
+        for (Class<?> k = c; k != null && gui == null; k = k.getSuperclass()) {
+            try {
+                Field f = k.getDeclaredField("gui");
+                f.setAccessible(true);
+                gui = f.get(minecraftInstance);
+            } catch (Throwable ignored) {
+            }
+        }
+        if (gui != null) {
+            Object viaMethod = tryGetNoArg(gui, "screen");
+            if (viaMethod != null) return viaMethod;
+            for (Class<?> k = gui.getClass(); k != null; k = k.getSuperclass()) {
+                try {
+                    Field f = k.getDeclaredField("screen");
+                    f.setAccessible(true);
+                    return f.get(gui);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+
+        // Any field whose type is a Screen
+        for (Class<?> k = c; k != null; k = k.getSuperclass()) {
+            for (Field f : k.getDeclaredFields()) {
+                if (!isScreenType(f.getType()) || java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                try {
+                    f.setAccessible(true);
+                    return f.get(minecraftInstance);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+
+        // Zero-arg getter returning a Screen
+        for (Class<?> k = c; k != null; k = k.getSuperclass()) {
+            for (Method m : k.getDeclaredMethods()) {
+                if (m.getParameterCount() != 0 || !isScreenType(m.getReturnType())) continue;
+                try {
+                    m.setAccessible(true);
+                    return m.invoke(minecraftInstance);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
         return null;
+    }
+
+    private static boolean isScreenType(Class<?> t) {
+        return t != null && t.getName().equals("net.minecraft.client.gui.screens.Screen");
     }
 }

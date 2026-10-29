@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "me.bewf.mint.mixin",
+  "compatibilityLevel": "${java}",
+  "minVersion": "0.8",
+  "client": [
+    "DisplayNameMixin",
+    "TabListMixin",
+    "ChatMixin",
+    "NameTagMixin"
+  ]
+}
