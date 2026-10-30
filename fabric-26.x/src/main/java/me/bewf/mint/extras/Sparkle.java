@@ -3,6 +3,7 @@ package me.bewf.mint.extras;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -10,6 +11,7 @@ import java.util.regex.Pattern;
 
 import me.bewf.mint.config.MintConfig;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -20,8 +22,8 @@ public final class Sparkle {
     private record Look(String prefix, int base, int shine, int shine2) {
     }
 
-    private static final Look LORD = new Look("your lord and saviour ", 0xBE3FFF, 0xFFF5FF, -1);
-    private static final Look SCOOP = new Look("scoop master ", 0x9932CC, 0xFFF5FF, -1);
+    private static final Look LORD = new Look("Lord and Saviour ", 0xBE3FFF, 0xFFF5FF, -1);
+    private static final Look SCOOP = new Look("Scoop Master ", 0x9932CC, 0xFFF5FF, -1);
 
     private static final Map<UUID, Look> PLAYERS = Map.of(
             uuid("2913ac77e515490a96eb5183963f6169"), LORD,
@@ -86,6 +88,11 @@ public final class Sparkle {
         float progress = shining ? phase / (float) SHINE_MS : 0.0F;
         float center = -SHINE_RADIUS + progress * (length + SHINE_RADIUS * 2.0F + trail);
 
+        // Merge neighbouring characters with the same colour into one component, so the name is a
+        // handful of components instead of one per letter (other mods choke on long colour chains)
+        int runStart = 0;
+        int runColor = -1;
+
         for (int i = 0; i < length; i++) {
             int color = look.base();
 
@@ -96,11 +103,17 @@ public final class Sparkle {
                 }
             }
 
-            out.append(
-                    Component.literal(String.valueOf(text.charAt(i)))
-                            .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(color)))
-            );
+            if (i == 0) {
+                runColor = color;
+            } else if (color != runColor) {
+                out.append(Component.literal(text.substring(runStart, i))
+                        .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(runColor))));
+                runStart = i;
+                runColor = color;
+            }
         }
+        out.append(Component.literal(text.substring(runStart))
+                .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(runColor))));
 
         CACHE.put(key, new Cached(playerName, now, out));
 
@@ -116,6 +129,107 @@ public final class Sparkle {
     private static Component staticName(Look look, String playerName) {
         return Component.literal(look.prefix() + playerName)
                 .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(look.base())));
+    }
+
+    /**
+     * SkyHanni (and similar mods) read names with Style colours turned into the literal text
+     * "<#RRGGBB>" because they only know the 16 Minecraft colours. SkyHanni's Advanced Player List
+     * reads the tab list that way in SkyBlock and then prints the tags. So only the game's own
+     * renderer gets the custom colours, anything else that asks for the same name gets the closest
+     * normal Minecraft colour.
+     */
+    private static final StackWalker WALKER = StackWalker.getInstance();
+    private static final Set<String> LOGGED_CALLERS = ConcurrentHashMap.newKeySet();
+
+    public static boolean calledByVanilla(String hookedMethod) {
+        try {
+            return WALKER.walk(frames -> {
+                boolean seen = false;
+                for (StackWalker.StackFrame f : (Iterable<StackWalker.StackFrame>) frames.limit(10)::iterator) {
+                    boolean isHooked = f.getMethodName().equals(hookedMethod);
+                    if (!seen) {
+                        seen = isHooked;
+                        continue;
+                    }
+                    if (isHooked) continue; // super calls inside the same method
+                    boolean vanilla = f.getClassName().startsWith("net.minecraft.");
+                    if (!vanilla && LOGGED_CALLERS.add(f.getClassName())) {
+                        System.out.println("[Mint] " + hookedMethod + " is read by " + f.getClassName()
+                                + ", using normal Minecraft colours for it");
+                    }
+                    return vanilla;
+                }
+                return true;
+            });
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    /** Name for hooks that other mods can also call: custom colours only for the game's own use. */
+    public static Component smartName(UUID uuid, String playerName, String hookedMethod) {
+        Look look = PLAYERS.get(uuid);
+        if (look == null) return Component.literal(playerName);
+        return calledByVanilla(hookedMethod) ? render(look, playerName) : legacyName(look, playerName);
+    }
+
+    private static Component legacyName(Look look, String playerName) {
+        ChatFormatting best = ChatFormatting.WHITE;
+        long bestDistance = Long.MAX_VALUE;
+        for (ChatFormatting f : ChatFormatting.values()) {
+            if (!f.isColor() || f.getColor() == null) continue;
+            int c = f.getColor();
+            long dr = ((c >> 16) & 255) - ((look.base() >> 16) & 255);
+            long dg = ((c >> 8) & 255) - ((look.base() >> 8) & 255);
+            long db = (c & 255) - (look.base() & 255);
+            long d = dr * dr + dg * dg + db * db;
+            if (d < bestDistance) {
+                bestDistance = d;
+                best = f;
+            }
+        }
+        return Component.literal(look.prefix() + playerName).withStyle(best);
+    }
+
+
+    private static final Pattern DECORATED_PATTERN = Pattern.compile(
+            "(Lord and Saviour |Scoop Master )(biwf|bewf|stalbet)(?![A-Za-z0-9_])", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Turns names that were already decorated with plain Minecraft colours (what other mods get)
+     * back into the full custom-coloured version. Used where another mod draws a Component itself,
+     * so the custom colours cannot be mangled by it any more.
+     */
+    public static Component upgradeDecoratedNames(Component message, boolean animated) {
+        try {
+            if (message == null || !MintConfig.INSTANCE.fancyNames || !MintConfig.INSTANCE.fancyTabList) return message;
+            if (!DECORATED_PATTERN.matcher(message.getString()).find()) return message;
+
+            MutableComponent out = Component.empty();
+            boolean[] changed = {false};
+            message.visit((style, text) -> {
+                Matcher m = DECORATED_PATTERN.matcher(text);
+                int last = 0;
+                while (m.find()) {
+                    Look look = NAMES.get(m.group(2).toLowerCase());
+                    if (look == null) continue;
+                    if (m.start() > last) {
+                        out.append(Component.literal(text.substring(last, m.start())).setStyle(style));
+                    }
+                    out.append(animated ? render(look, m.group(2)) : staticName(look, m.group(2)));
+                    changed[0] = true;
+                    last = m.end();
+                }
+                if (last < text.length()) {
+                    out.append(Component.literal(text.substring(last)).setStyle(style));
+                }
+                return Optional.empty();
+            }, Style.EMPTY);
+
+            return changed[0] ? out : message;
+        } catch (Throwable t) {
+            return message;
+        }
     }
 
     /** Chat lines: single colour, and only the sender part, not the message body. */
@@ -176,6 +290,10 @@ public final class Sparkle {
      * (ranks, team prefixes, colours) as it was.
      */
     public static Component replaceNames(Component message, boolean animated, boolean senderOnly) {
+        return replaceNames(message, animated, senderOnly, false);
+    }
+
+    public static Component replaceNames(Component message, boolean animated, boolean senderOnly, boolean legacyColours) {
         try {
             if (message == null || !MintConfig.INSTANCE.fancyNames) return message;
 
@@ -206,7 +324,8 @@ public final class Sparkle {
                     if (m.start() > last) {
                         out.append(Component.literal(text.substring(last, m.start())).setStyle(style));
                     }
-                    out.append(animated ? render(look, m.group(1)) : staticName(look, m.group(1)));
+                    out.append(legacyColours ? legacyName(look, m.group(1))
+                            : animated ? render(look, m.group(1)) : staticName(look, m.group(1)));
                     changed[0] = true;
                     last = m.end();
                 }

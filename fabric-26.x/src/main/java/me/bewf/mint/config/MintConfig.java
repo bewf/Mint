@@ -26,6 +26,12 @@ public class MintConfig extends Config {
     public boolean fancyNames = true;
 
     @Checkbox(
+            title = "Sparkle Tab List",
+            category = "Debug"
+    )
+    public boolean fancyTabList = true;
+
+    @Checkbox(
             title = "Update Checker",
             description = "Show update notification when joining the game.",
             category = "Debug",

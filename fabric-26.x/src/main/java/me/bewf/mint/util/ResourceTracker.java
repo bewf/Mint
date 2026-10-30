@@ -3,6 +3,7 @@ package me.bewf.mint.util;
 import me.bewf.mint.config.MintConfig;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
@@ -19,6 +20,8 @@ import org.polyfrost.oneconfig.api.event.v1.EventManager;
 import org.polyfrost.oneconfig.api.event.v1.events.TickEvent;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -51,6 +54,12 @@ public class ResourceTracker {
 
     private static boolean wasEnderGui = false;
     private static int enderGuiWarmup = 0;
+
+    // The chest the team chest numbers belong to: the first chest touched in a game. Later chests
+    // (other teams' chests once they are eliminated) are ignored so they cannot overwrite it.
+    private static BlockPos homeChestPos = null;
+    private static BlockPos lastChestPos = null;
+    private static final Set<BlockPos> ignoredChestsLogged = new HashSet<>();
 
     public static int teamChestInteractionWarmup = 0;
     private static boolean wasTeamGui = false;
@@ -91,6 +100,12 @@ public class ResourceTracker {
     public void register() {
         EventManager.INSTANCE.register(TickEvent.End.class, event -> onClientTick());
         AttackBlockCallback.EVENT.register(this::onAttackBlock);
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (world.getBlockState(hit.getBlockPos()).getBlock() == Blocks.CHEST) {
+                lastChestPos = hit.getBlockPos().immutable();
+            }
+            return InteractionResult.PASS;
+        });
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChat(message.getString()));
         ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, timestamp) -> onChat(message.getString()));
     }
@@ -115,6 +130,7 @@ public class ResourceTracker {
                     countItemInInventory(mc, held.getItem())
             ));
         } else if (world.getBlockState(pos).getBlock() == Blocks.CHEST) {
+            lastChestPos = pos.immutable();
             teamChestInteractionWarmup = 100;
         }
 
@@ -130,6 +146,12 @@ public class ResourceTracker {
 
             Matcher totalMatcher = TOTAL_NUMBER_PATTERN.matcher(msg);
             if (totalMatcher.find()) {
+                teamChestInteractionWarmup = 0;
+
+                // A deposit into some other chest reports that chest's total, which must not
+                // replace the numbers of the home team chest
+                if (!acceptTeamChest(lastChestPos)) return;
+
                 int total = Integer.parseInt(totalMatcher.group(1));
 
                 if (MATERIAL_PATTERNS[0].matcher(msg).find()) {
@@ -141,8 +163,6 @@ public class ResourceTracker {
                 } else if (MATERIAL_PATTERNS[3].matcher(msg).find()) {
                     teamChestEmerald = total;
                 }
-
-                teamChestInteractionWarmup = 0;
             }
         }
     }
@@ -160,7 +180,6 @@ public class ResourceTracker {
         if (lastWorldRef != mc.level) {
             lastWorldRef = mc.level;
             resetAll();
-            System.out.println("[Mint] player " + mc.player.getName().getString() + " uuid " + mc.player.getUUID());
         }
 
         boolean debug = MintConfig.INSTANCE.showOutsideBedwars;
@@ -181,7 +200,6 @@ public class ResourceTracker {
         handlePendingDeposits(mc);
 
         boolean inEnderGui = isEnderChestGuiOpen(mc);
-        debugLog(mc, inEnderGui);
 
         if (inEnderGui && !wasEnderGui) {
             enderGuiWarmup = 2;
@@ -210,13 +228,17 @@ public class ResourceTracker {
         wasEnderGui = inEnderGui;
 
         boolean inTeamChestGui = isTeamChestGuiOpen(mc);
+        if (inTeamChestGui && !wasTeamGui) {
+            // Give the server a moment to send the chest contents before reading them
+            teamChestGuiWarmup = 2;
+        }
         if (inTeamChestGui) {
             teamChestInteractionWarmup = 100;
         }
         Counts teamCounts = inTeamChestGui ? countOpenChestContainer(mc) : new Counts();
         if (teamChestGuiWarmup > 0) {
             teamChestGuiWarmup--;
-        } else if (inTeamChestGui) {
+        } else if (inTeamChestGui && acceptTeamChest(lastChestPos)) {
             teamChestIron = teamCounts.iron;
             teamChestGold = teamCounts.gold;
             teamChestDiamond = teamCounts.diamond;
@@ -225,24 +247,22 @@ public class ResourceTracker {
         wasTeamGui = inTeamChestGui;
     }
 
-    private static String lastDebug = "";
-
-    private void debugLog(Minecraft mc, boolean inEnderGui) {
-        Object screenObj = ReflectUtil.getScreen(mc);
-        String screenName = screenObj == null ? "null" : screenObj.getClass().getName();
-        String menu = mc.player.containerMenu == null ? "null" : mc.player.containerMenu.getClass().getSimpleName();
-        String title = openChestTitle(mc);
-        String chestGold = "-";
-        if (screenObj instanceof AbstractContainerScreen<?> && mc.player.containerMenu instanceof ChestMenu) {
-            chestGold = String.valueOf(countOpenChestContainer(mc).gold);
+    /**
+     * True when the chest at pos is the home team chest. The first chest touched in a game becomes
+     * the home chest. A double chest has two positions next to each other, so neighbours match too.
+     */
+    private static boolean acceptTeamChest(BlockPos pos) {
+        if (pos == null) return true; // unknown chest, keep the old behaviour
+        if (homeChestPos == null) {
+            homeChestPos = pos;
+            System.out.println("[Mint] Team chest set to " + pos.toShortString());
+            return true;
         }
-        String line = "screen=" + screenName + " menu=" + menu + " title=" + title
-                + " enderGui=" + inEnderGui + " chestGold=" + chestGold
-                + " goldEc=" + lastGoldBase + " pending=" + pendingDeposits.size();
-        if (!line.equals(lastDebug)) {
-            lastDebug = line;
-            System.out.println("[Mint] " + line);
+        if (pos.distManhattan(homeChestPos) <= 1) return true;
+        if (ignoredChestsLogged.add(pos)) {
+            System.out.println("[Mint] Ignoring other chest at " + pos.toShortString() + " (team chest is " + homeChestPos.toShortString() + ")");
         }
+        return false;
     }
 
     private void handlePendingDeposits(Minecraft mc) {
@@ -404,6 +424,10 @@ public class ResourceTracker {
         teamChestInteractionWarmup = 0;
         wasTeamGui = false;
         teamChestGuiWarmup = 0;
+
+        homeChestPos = null;
+        lastChestPos = null;
+        ignoredChestsLogged.clear();
     }
 
     private static class Counts {
