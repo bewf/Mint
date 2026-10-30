@@ -177,8 +177,9 @@ public final class Sparkle {
         ChatFormatting best = ChatFormatting.WHITE;
         long bestDistance = Long.MAX_VALUE;
         for (ChatFormatting f : ChatFormatting.values()) {
-            if (!f.isColor() || f.getColor() == null) continue;
-            int c = f.getColor();
+            TextColor legacy = TextColor.fromLegacyFormat(f);
+            if (legacy == null) continue;
+            int c = legacy.getValue();
             long dr = ((c >> 16) & 255) - ((look.base() >> 16) & 255);
             long dg = ((c >> 8) & 255) - ((look.base() >> 8) & 255);
             long db = (c & 255) - (look.base() & 255);
