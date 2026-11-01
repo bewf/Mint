@@ -18,7 +18,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 
 public final class Sparkle {
-    /** shine2 < 0 means a single shine; otherwise a second sweep of that colour trails behind the first. */
+    // A negative shine2 means a single sweep.
     private record Look(String prefix, int base, int shine, int shine2) {
     }
 
@@ -31,7 +31,7 @@ public final class Sparkle {
             uuid("e02ca8dea5d740ffaa85d29a83a2eefb"), SCOOP
     );
 
-    // Names are matched in text too, so this also works when the player is on another server
+    // Also matched by name in text, for servers where the UUID does not match
     private static final Map<String, Look> NAMES = new ConcurrentHashMap<>(Map.of(
             "biwf", LORD,
             "bewf", LORD,
@@ -88,8 +88,7 @@ public final class Sparkle {
         float progress = shining ? phase / (float) SHINE_MS : 0.0F;
         float center = -SHINE_RADIUS + progress * (length + SHINE_RADIUS * 2.0F + trail);
 
-        // Merge neighbouring characters with the same colour into one component, so the name is a
-        // handful of components instead of one per letter (other mods choke on long colour chains)
+        // One component per run of equal colour, not per letter
         int runStart = 0;
         int runColor = -1;
 
@@ -125,55 +124,67 @@ public final class Sparkle {
         return strength * strength * (3.0F - 2.0F * strength);
     }
 
-    /** Single-colour version for places that do not redraw every frame (chat). */
     private static Component staticName(Look look, String playerName) {
         return Component.literal(look.prefix() + playerName)
                 .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(look.base())));
     }
 
-    /**
-     * SkyHanni (and similar mods) read names with Style colours turned into the literal text
-     * "<#RRGGBB>" because they only know the 16 Minecraft colours. SkyHanni's Advanced Player List
-     * reads the tab list that way in SkyBlock and then prints the tags. So only the game's own
-     * renderer gets the custom colours, anything else that asks for the same name gets the closest
-     * normal Minecraft colour.
-     */
     private static final StackWalker WALKER = StackWalker.getInstance();
     private static final Set<String> LOGGED_CALLERS = ConcurrentHashMap.newKeySet();
 
-    public static boolean calledByVanilla(String hookedMethod) {
+    private enum Reader {
+        GAME, SKYHANNI, OTHER
+    }
+
+
+    private static Reader reader(String hookedMethod) {
         try {
             return WALKER.walk(frames -> {
                 boolean seen = false;
-                for (StackWalker.StackFrame f : (Iterable<StackWalker.StackFrame>) frames.limit(10)::iterator) {
-                    boolean isHooked = f.getMethodName().equals(hookedMethod);
+                Reader found = null;
+                for (StackWalker.StackFrame f : (Iterable<StackWalker.StackFrame>) frames.limit(16)::iterator) {
+                    boolean hooked = f.getMethodName().equals(hookedMethod);
                     if (!seen) {
-                        seen = isHooked;
+                        seen = hooked;
                         continue;
                     }
-                    if (isHooked) continue; // super calls inside the same method
-                    boolean vanilla = f.getClassName().startsWith("net.minecraft.");
-                    if (!vanilla && LOGGED_CALLERS.add(f.getClassName())) {
-                        System.out.println("[Mint] " + hookedMethod + " is read by " + f.getClassName()
-                                + ", using normal Minecraft colours for it");
+                    if (hooked) continue;
+                    String owner = f.getClassName();
+                    if (owner.startsWith("at.hannibal2.skyhanni.")) return Reader.SKYHANNI;
+                    if (found == null) {
+                        found = owner.startsWith("net.minecraft.") ? Reader.GAME : Reader.OTHER;
+                        if (found == Reader.GAME) return found;
+                        if (LOGGED_CALLERS.add(owner)) {
+                            System.out.println("[Mint] " + hookedMethod + " is read by " + owner + ", using Minecraft colours for it");
+                        }
                     }
-                    return vanilla;
                 }
-                return true;
+                return found == null ? Reader.GAME : found;
             });
         } catch (Throwable t) {
-            return true;
+            return Reader.GAME;
         }
     }
 
-    /** Name for hooks that other mods can also call: custom colours only for the game's own use. */
     public static Component smartName(UUID uuid, String playerName, String hookedMethod) {
         Look look = PLAYERS.get(uuid);
         if (look == null) return Component.literal(playerName);
-        return calledByVanilla(hookedMethod) ? render(look, playerName) : legacyName(look, playerName);
+        Reader reader = reader(hookedMethod);
+        return reader == Reader.GAME ? render(look, playerName) : legacyName(look, playerName, reader == Reader.OTHER);
     }
 
-    private static Component legacyName(Look look, String playerName) {
+    public static Component tabName(Component message) {
+        Reader reader = reader("getNameForDisplay");
+        return replaceNames(message, reader == Reader.GAME, false, reader);
+    }
+
+    // SkyHanniy's advanced player list splits each tab line on spaces and takes the first word as the players name so it only colours the first block.
+    public static Component restoreAfterSkyHanni(Component line) {
+        if (!MintConfig.INSTANCE.fancyTabList) return line;
+        return replaceNames(line, true, false, Reader.GAME);
+    }
+
+    private static Component legacyName(Look look, String playerName, boolean withPrefix) {
         ChatFormatting best = ChatFormatting.WHITE;
         long bestDistance = Long.MAX_VALUE;
         for (ChatFormatting f : ChatFormatting.values()) {
@@ -189,53 +200,11 @@ public final class Sparkle {
                 best = f;
             }
         }
-        return Component.literal(look.prefix() + playerName).withStyle(best);
+        return Component.literal(withPrefix ? look.prefix() + playerName : playerName).withStyle(best);
     }
 
-
-    private static final Pattern DECORATED_PATTERN = Pattern.compile(
-            "(Lord and Saviour |Scoop Master )(biwf|bewf|stalbet)(?![A-Za-z0-9_])", Pattern.CASE_INSENSITIVE);
-
-    /**
-     * Turns names that were already decorated with plain Minecraft colours (what other mods get)
-     * back into the full custom-coloured version. Used where another mod draws a Component itself,
-     * so the custom colours cannot be mangled by it any more.
-     */
-    public static Component upgradeDecoratedNames(Component message, boolean animated) {
-        try {
-            if (message == null || !MintConfig.INSTANCE.fancyNames || !MintConfig.INSTANCE.fancyTabList) return message;
-            if (!DECORATED_PATTERN.matcher(message.getString()).find()) return message;
-
-            MutableComponent out = Component.empty();
-            boolean[] changed = {false};
-            message.visit((style, text) -> {
-                Matcher m = DECORATED_PATTERN.matcher(text);
-                int last = 0;
-                while (m.find()) {
-                    Look look = NAMES.get(m.group(2).toLowerCase());
-                    if (look == null) continue;
-                    if (m.start() > last) {
-                        out.append(Component.literal(text.substring(last, m.start())).setStyle(style));
-                    }
-                    out.append(animated ? render(look, m.group(2)) : staticName(look, m.group(2)));
-                    changed[0] = true;
-                    last = m.end();
-                }
-                if (last < text.length()) {
-                    out.append(Component.literal(text.substring(last)).setStyle(style));
-                }
-                return Optional.empty();
-            }, Style.EMPTY);
-
-            return changed[0] ? out : message;
-        } catch (Throwable t) {
-            return message;
-        }
-    }
-
-    /** Chat lines: single colour, and only the sender part, not the message body. */
     public static Component decorateChat(Component message) {
-        return replaceNames(message, false, true);
+        return replaceNames(message, false, true, Reader.GAME);
     }
 
     private static volatile Pattern namePattern;
@@ -253,10 +222,7 @@ public final class Sparkle {
         namePattern = Pattern.compile("(?<![A-Za-z0-9_])(" + alt + ")(?![A-Za-z0-9_])", Pattern.CASE_INSENSITIVE);
     }
 
-    /**
-     * Looks up the current name of every listed UUID with Mojang, so names are recognised even
-     * when the player is in a different world, and keep working after a name change.
-     */
+    // Resolves the current name of each listed UUID so renamed accounts keep working
     public static void startNameLookup() {
         Thread t = new Thread(() -> {
             for (Map.Entry<UUID, Look> e : PLAYERS.entrySet()) {
@@ -286,23 +252,18 @@ public final class Sparkle {
     private static final Pattern LIST_HEADER = Pattern.compile(
             "(party (leader|members|moderators)|partying with)\\s*$", Pattern.CASE_INSENSITIVE);
 
-    /**
-     * Replaces the names of special players found inside a component, keeping everything else
-     * (ranks, team prefixes, colours) as it was.
-     */
     public static Component replaceNames(Component message, boolean animated, boolean senderOnly) {
-        return replaceNames(message, animated, senderOnly, false);
+        return replaceNames(message, animated, senderOnly, Reader.GAME);
     }
 
-    public static Component replaceNames(Component message, boolean animated, boolean senderOnly, boolean legacyColours) {
+    private static Component replaceNames(Component message, boolean animated, boolean senderOnly, Reader reader) {
         try {
             if (message == null || !MintConfig.INSTANCE.fancyNames) return message;
 
             String flat = message.getString();
             if (!namePattern.matcher(flat).find()) return message;
 
-            // Chat lines: names after the first colon are message text, leave them alone.
-            // Party list lines ("Party Members: ...") are not chat, so they are replaced everywhere.
+            // Text after the first colon is message body
             int limit = Integer.MAX_VALUE;
             if (senderOnly) {
                 int colon = flat.indexOf(':');
@@ -319,13 +280,12 @@ public final class Sparkle {
                 while (m.find()) {
                     if (offset[0] + m.start() >= senderEnd) break;
                     Look look = NAMES.get(m.group(1).toLowerCase());
-                    // Already decorated, do not apply twice
                     String before = text.substring(0, m.start());
                     if (before.endsWith(look.prefix())) continue;
                     if (m.start() > last) {
                         out.append(Component.literal(text.substring(last, m.start())).setStyle(style));
                     }
-                    out.append(legacyColours ? legacyName(look, m.group(1))
+                    out.append(reader != Reader.GAME ? legacyName(look, m.group(1), reader == Reader.OTHER)
                             : animated ? render(look, m.group(1)) : staticName(look, m.group(1)));
                     changed[0] = true;
                     last = m.end();

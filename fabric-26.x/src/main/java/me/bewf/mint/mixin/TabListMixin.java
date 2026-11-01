@@ -18,15 +18,8 @@ public abstract class TabListMixin {
     private void mint$polish(PlayerInfo info, CallbackInfoReturnable<Component> cir) {
         try {
             if (!MintConfig.INSTANCE.fancyTabList) return;
-
             Component original = cir.getReturnValue();
-
-            // Only the game's own tab list gets custom colours, mods that read the names
-            // (SkyHanni's Advanced Player List) get plain Minecraft colours
-            boolean vanilla = Sparkle.calledByVanilla("getNameForDisplay");
-
-            // Text replace first: also works for servers (SkyBlock) that draw fake tab entries
-            Component replaced = Sparkle.replaceNames(original, vanilla, false, !vanilla);
+            Component replaced = Sparkle.tabName(original);
             if (replaced != original) {
                 cir.setReturnValue(replaced);
             } else if (Sparkle.wants(info.getProfile().id())) {
