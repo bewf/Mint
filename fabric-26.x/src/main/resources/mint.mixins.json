@@ -8,6 +8,8 @@
     "TabListMixin",
     "ChatMixin",
     "NameTagMixin",
-    "SkyHanniTabMixin"
+    "SkyHanniTabMixin",
+    "SkyHanniTabLineMixin",
+    "SkyHanniTabRenderMixin"
   ]
 }

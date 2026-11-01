@@ -219,7 +219,8 @@ public final class Sparkle {
             if (alt.length() > 0) alt.append('|');
             alt.append(Pattern.quote(n));
         }
-        namePattern = Pattern.compile("(?<![A-Za-z0-9_])(" + alt + ")(?![A-Za-z0-9_])", Pattern.CASE_INSENSITIVE);
+        // A name may sit right behind a raw colour code (SkyHanni builds "§dbewf"), so a code counts as a boundary
+        namePattern = Pattern.compile("(?:(?<![A-Za-z0-9_])|(?<=\u00A7[0-9A-Fa-fK-Ok-oRr]))(" + alt + ")(?![A-Za-z0-9_])", Pattern.CASE_INSENSITIVE);
     }
 
     // Resolves the current name of each listed UUID so renamed accounts keep working
@@ -280,8 +281,9 @@ public final class Sparkle {
                 while (m.find()) {
                     if (offset[0] + m.start() >= senderEnd) break;
                     Look look = NAMES.get(m.group(1).toLowerCase());
-                    String before = text.substring(0, m.start());
-                    if (before.endsWith(look.prefix())) continue;
+                    // Check the whole line so a prefix split across several runs is still seen
+                    String before = flat.substring(0, Math.min(flat.length(), offset[0] + m.start()));
+                    if (before.replaceAll("\u00A7.", "").endsWith(look.prefix())) continue;
                     if (m.start() > last) {
                         out.append(Component.literal(text.substring(last, m.start())).setStyle(style));
                     }
