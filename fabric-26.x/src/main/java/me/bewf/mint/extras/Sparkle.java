@@ -49,7 +49,7 @@ public final class Sparkle {
                 "$1-$2-$3-$4-$5"));
     }
 
-    private static final long CACHE_MS = 50L;
+    private static final long CACHE_MS = 16L;
     private static final long PERIOD_MS = 2400L;
     private static final long SHINE_MS = 480L;
 
