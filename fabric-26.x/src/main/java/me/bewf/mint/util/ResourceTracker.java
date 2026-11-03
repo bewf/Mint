@@ -1,6 +1,7 @@
 package me.bewf.mint.util;
 
 import me.bewf.mint.config.MintConfig;
+import me.bewf.mint.sync.ChestPicker;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -15,6 +16,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import org.polyfrost.oneconfig.api.event.v1.EventManager;
 import org.polyfrost.oneconfig.api.event.v1.events.TickEvent;
@@ -55,11 +57,32 @@ public class ResourceTracker {
     private static boolean wasEnderGui = false;
     private static int enderGuiWarmup = 0;
 
-    // The chest the team chest numbers belong to: the first chest touched in a game. Later chests
-    // (other teams' chests once they are eliminated) are ignored so they cannot overwrite it.
+    // The chest the team chest numbers belong to. It is found by looking around the spawn point when
+    // the game starts, so walking over to an enemy base and opening their chest cannot replace it.
+    // Other chests are ignored so they cannot overwrite the numbers.
     private static BlockPos homeChestPos = null;
+    private static BlockPos enderChestPos = null;
     private static BlockPos lastChestPos = null;
     private static final Set<BlockPos> ignoredChestsLogged = new HashSet<>();
+
+    // True once the server itself said "Team Chest" about homeChestPos
+    private static boolean homeConfirmed = false;
+
+    private static BlockPos spawnPos = null;
+    private static float spawnYaw = 0f;
+    // Ticks until the spawn point is read after the game start message, so the teleport to the base is done
+    private static int spawnCaptureCountdown = -1;
+    // Ticks left in which the area around the spawn is still searched (chunks may arrive late)
+    private static int scanTicksLeft = 0;
+    private static int ticksSinceChestTouch = 1000;
+
+    private static BlockPos lastTickPos = null;
+    private static final int TELEPORT_BLOCKS = 30;
+
+    private static final int SCAN_INTERVAL_TICKS = 10;
+    private static final int SCAN_WINDOW_TICKS = 200;
+    // How far from the spawn a chest may be when nothing was found by the search
+    private static final int FALLBACK_RADIUS = 24;
 
     public static int teamChestInteractionWarmup = 0;
     private static boolean wasTeamGui = false;
@@ -97,12 +120,22 @@ public class ResourceTracker {
         return active;
     }
 
+    public static BlockPos homeChest() {
+        return homeChestPos;
+    }
+
+    public static BlockPos homeEnderChest() {
+        return enderChestPos;
+    }
+
     public void register() {
         EventManager.INSTANCE.register(TickEvent.End.class, event -> onClientTick());
         AttackBlockCallback.EVENT.register(this::onAttackBlock);
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
-            if (world.getBlockState(hit.getBlockPos()).getBlock() == Blocks.CHEST) {
+            Block block = world.getBlockState(hit.getBlockPos()).getBlock();
+            if (block == Blocks.CHEST) {
                 lastChestPos = hit.getBlockPos().immutable();
+                ticksSinceChestTouch = 0;
             }
             return InteractionResult.PASS;
         });
@@ -131,6 +164,7 @@ public class ResourceTracker {
             ));
         } else if (world.getBlockState(pos).getBlock() == Blocks.CHEST) {
             lastChestPos = pos.immutable();
+            ticksSinceChestTouch = 0;
             teamChestInteractionWarmup = 100;
         }
 
@@ -142,11 +176,18 @@ public class ResourceTracker {
 
         String msg = StringUtil.stripColor(raw);
 
+        // Players are sent to their bases when the game starts. Read the spawn a moment later.
+        if (msg.contains("Protect your bed and destroy the enemy beds")) {
+            spawnCaptureCountdown = 20;
+        }
+
         if (teamChestInteractionWarmup > 0 && msg.contains("Team Chest")) {
 
             Matcher totalMatcher = TOTAL_NUMBER_PATTERN.matcher(msg);
             if (totalMatcher.find()) {
                 teamChestInteractionWarmup = 0;
+
+                confirmHomeFromServer();
 
                 // A deposit into some other chest reports that chest's total, which must not
                 // replace the numbers of the home team chest
@@ -189,6 +230,9 @@ public class ResourceTracker {
             resetAll();
             return;
         }
+
+        ticksSinceChestTouch++;
+        updateHomeChests(mc);
 
         Counts invNow = countPlayerInventory(mc);
 
@@ -248,21 +292,127 @@ public class ResourceTracker {
     }
 
     /**
-     * True when the chest at pos is the home team chest. The first chest touched in a game becomes
-     * the home chest. A double chest has two positions next to each other, so neighbours match too.
+     * True when the chest at pos is the home team chest. The home chest is found by looking around
+     * the spawn point. When that found nothing, the first chest touched close to the spawn is used.
+     * A double chest has two positions next to each other, so neighbours match too.
      */
     private static boolean acceptTeamChest(BlockPos pos) {
         if (pos == null) return true; // unknown chest, keep the old behaviour
-        if (homeChestPos == null) {
+        if (homeChestPos != null) {
+            if (pos.distManhattan(homeChestPos) <= 1) return true;
+            logIgnored(pos);
+            return false;
+        }
+        if (spawnPos == null || withinFallbackRange(pos)) {
             homeChestPos = pos;
-            System.out.println("[Mint] Team chest set to " + pos.toShortString());
+            System.out.println("[Mint] Team chest set to " + pos.toShortString() + " (first chest touched)");
             return true;
         }
-        if (pos.distManhattan(homeChestPos) <= 1) return true;
-        if (ignoredChestsLogged.add(pos)) {
-            System.out.println("[Mint] Ignoring other chest at " + pos.toShortString() + " (team chest is " + homeChestPos.toShortString() + ")");
-        }
+        logIgnored(pos);
         return false;
+    }
+
+    private static void logIgnored(BlockPos pos) {
+        if (ignoredChestsLogged.add(pos)) {
+            System.out.println("[Mint] Ignoring other chest at " + pos.toShortString()
+                    + (homeChestPos != null ? " (team chest is " + homeChestPos.toShortString() + ")" : ""));
+        }
+    }
+
+    private static boolean withinFallbackRange(BlockPos pos) {
+        if (spawnPos == null) return true;
+        int dx = pos.getX() - spawnPos.getX();
+        int dz = pos.getZ() - spawnPos.getZ();
+        return dx * dx + dz * dz <= FALLBACK_RADIUS * FALLBACK_RADIUS
+                && Math.abs(pos.getY() - spawnPos.getY()) <= ChestPicker.MAX_VERTICAL + 2;
+    }
+
+    /**
+     * "Deposited ... into Team Chest" right after punching a chest means the server itself calls that
+     * chest the team chest. That outranks the search around the spawn, as long as the punch was recent.
+     */
+    private static void confirmHomeFromServer() {
+        if (lastChestPos == null || ticksSinceChestTouch > 40) return;
+        if (homeChestPos != null && lastChestPos.distManhattan(homeChestPos) <= 1) {
+            homeConfirmed = true;
+            return;
+        }
+        if (homeConfirmed) return;
+        homeChestPos = lastChestPos;
+        homeConfirmed = true;
+        System.out.println("[Mint] Team chest confirmed by the server at " + homeChestPos.toShortString());
+    }
+
+    /** Reads the spawn point when the game starts and searches around it for the team chest and Ender Chest. */
+    private void updateHomeChests(Minecraft mc) {
+        // A jump of many blocks in one tick is a teleport, such as lobby to base. If the team chest is
+        // still unknown, read the spawn again shortly after it, even when the start message was missed.
+        BlockPos here = mc.player.blockPosition();
+        if (lastTickPos != null && homeChestPos == null && spawnCaptureCountdown < 0
+                && here.distManhattan(lastTickPos) > TELEPORT_BLOCKS) {
+            spawnCaptureCountdown = 20;
+        }
+        lastTickPos = here;
+
+        if (spawnCaptureCountdown > 0 && --spawnCaptureCountdown == 0) {
+            spawnCaptureCountdown = -1;
+            captureSpawn(mc);
+        } else if (spawnPos == null) {
+            // Joined a game that is already running, so no start message will come
+            captureSpawn(mc);
+        }
+
+        if (scanTicksLeft > 0) {
+            if (scanTicksLeft % SCAN_INTERVAL_TICKS == 0) scanForChests(mc);
+            scanTicksLeft--;
+        }
+    }
+
+    private static void captureSpawn(Minecraft mc) {
+        if (mc.player == null) return;
+        spawnPos = mc.player.blockPosition().immutable();
+        spawnYaw = mc.player.getYRot();
+        if (!homeConfirmed) homeChestPos = null;
+        enderChestPos = null;
+        scanTicksLeft = SCAN_WINDOW_TICKS;
+        System.out.println("[Mint] Spawn point " + spawnPos.toShortString() + ", looking for the team chest");
+    }
+
+    private static void scanForChests(Minecraft mc) {
+        if (spawnPos == null || mc.level == null) return;
+
+        int range = (int) Math.ceil(ChestPicker.MAX_HORIZONTAL);
+        int vertical = ChestPicker.MAX_VERTICAL;
+        List<int[]> chests = new ArrayList<>();
+        List<int[]> enders = new ArrayList<>();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+
+        for (int x = spawnPos.getX() - range; x <= spawnPos.getX() + range; x++) {
+            for (int z = spawnPos.getZ() - range; z <= spawnPos.getZ() + range; z++) {
+                for (int y = spawnPos.getY() - vertical; y <= spawnPos.getY() + vertical; y++) {
+                    Block block = mc.level.getBlockState(cursor.set(x, y, z)).getBlock();
+                    if (block == Blocks.CHEST) chests.add(new int[]{x, y, z});
+                    else if (block == Blocks.ENDER_CHEST) enders.add(new int[]{x, y, z});
+                }
+            }
+        }
+
+        double px = spawnPos.getX() + 0.5;
+        double pz = spawnPos.getZ() + 0.5;
+
+        if (!homeConfirmed) {
+            int[] chest = ChestPicker.pick(px, spawnPos.getY(), pz, spawnYaw, chests);
+            if (chest != null) {
+                BlockPos found = new BlockPos(chest[0], chest[1], chest[2]);
+                if (!found.equals(homeChestPos)) {
+                    homeChestPos = found;
+                    System.out.println("[Mint] Team chest set to " + found.toShortString() + " (found near spawn)");
+                }
+            }
+        }
+
+        int[] ender = ChestPicker.pick(px, spawnPos.getY(), pz, spawnYaw, enders);
+        if (ender != null) enderChestPos = new BlockPos(ender[0], ender[1], ender[2]);
     }
 
     private void handlePendingDeposits(Minecraft mc) {
@@ -426,6 +576,13 @@ public class ResourceTracker {
         teamChestGuiWarmup = 0;
 
         homeChestPos = null;
+        enderChestPos = null;
+        homeConfirmed = false;
+        spawnPos = null;
+        lastTickPos = null;
+        spawnCaptureCountdown = -1;
+        scanTicksLeft = 0;
+        ticksSinceChestTouch = 1000;
         lastChestPos = null;
         ignoredChestsLogged.clear();
     }
