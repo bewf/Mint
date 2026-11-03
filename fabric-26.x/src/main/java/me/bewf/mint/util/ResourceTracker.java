@@ -2,6 +2,8 @@ package me.bewf.mint.util;
 
 import me.bewf.mint.config.MintConfig;
 import me.bewf.mint.sync.ChestPicker;
+import me.bewf.mint.sync.Delta;
+import me.bewf.mint.sync.TeamChestLedger;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -45,6 +47,15 @@ public class ResourceTracker {
     public static int teamChestGold = 0;
     public static int teamChestDiamond = 0;
     public static int teamChestEmerald = 0;
+
+    // What this player believes the team chest holds. Looks at the chest are the truth, updates from
+    // teammates move the numbers in between. The public team chest fields above mirror it.
+    private static final TeamChestLedger ledger = new TeamChestLedger();
+
+    // True while the home team chest is open on screen
+    private static boolean homeGuiOpen = false;
+    // Inventory when the team chest was opened or last changed, to see what this player put in or took out
+    private static Counts guiInvCheckpoint = null;
 
     private static boolean active = false;
     private static Object lastWorldRef = null;
@@ -96,8 +107,9 @@ public class ResourceTracker {
             Pattern.compile("emerald", Pattern.CASE_INSENSITIVE)
     };
 
+    // "Deposited 64 Iron into Team Chest! (128 total)": only the first number is needed here
     private static final Pattern TEAM_DEPOSIT_PATTERN = Pattern.compile(
-            "Deposited \\d+ (.+) into Team Chest!? ?\\((\\d+)\\)? ?total?",
+            "Deposited (\\d+) ",
             Pattern.CASE_INSENSITIVE
     );
 
@@ -194,18 +206,76 @@ public class ResourceTracker {
                 if (!acceptTeamChest(lastChestPos)) return;
 
                 int total = Integer.parseInt(totalMatcher.group(1));
+                long now = System.currentTimeMillis();
 
+                int resource = -1;
                 if (MATERIAL_PATTERNS[0].matcher(msg).find()) {
                     teamChestIron = total;
+                    resource = Delta.IRON;
                 } else if (MATERIAL_PATTERNS[1].matcher(msg).find()) {
                     teamChestGold = total;
+                    resource = Delta.GOLD;
                 } else if (MATERIAL_PATTERNS[2].matcher(msg).find()) {
                     teamChestDiamond = total;
+                    resource = Delta.DIAMOND;
                 } else if (MATERIAL_PATTERNS[3].matcher(msg).find()) {
                     teamChestEmerald = total;
+                    resource = Delta.EMERALD;
+                }
+
+                if (resource >= 0) {
+                    ledger.total(resource, total, now);
+
+                    // A punch deposit is a change the rest of the party wants to hear about
+                    Matcher deposit = TEAM_DEPOSIT_PATTERN.matcher(msg);
+                    if (deposit.find()) {
+                        Delta change = new Delta();
+                        change.add(resource, Integer.parseInt(deposit.group(1)));
+                        TeamChestSync.record(change);
+                    }
                 }
             }
         }
+    }
+
+    /** A teammate changed the team chest and told the party. */
+    static void applyTeammateUpdate(Delta change) {
+        if (ledger.applyRemote(change, System.currentTimeMillis(), homeGuiOpen)) {
+            publishLedger();
+        }
+    }
+
+    private static void publishLedger() {
+        teamChestIron = ledger.get(Delta.IRON);
+        teamChestGold = ledger.get(Delta.GOLD);
+        teamChestDiamond = ledger.get(Delta.DIAMOND);
+        teamChestEmerald = ledger.get(Delta.EMERALD);
+    }
+
+    /** Works out what this player put into or took out of the open team chest from their own inventory. */
+    private static void trackOwnChanges(Counts invNow) {
+        if (guiInvCheckpoint == null) {
+            guiInvCheckpoint = copyOf(invNow);
+            return;
+        }
+        Delta mine = new Delta();
+        mine.add(Delta.IRON, guiInvCheckpoint.iron - invNow.iron);
+        mine.add(Delta.GOLD, guiInvCheckpoint.gold - invNow.gold);
+        mine.add(Delta.DIAMOND, guiInvCheckpoint.diamond - invNow.diamond);
+        mine.add(Delta.EMERALD, guiInvCheckpoint.emerald - invNow.emerald);
+        if (mine.isZero()) return;
+
+        TeamChestSync.record(mine);
+        guiInvCheckpoint = copyOf(invNow);
+    }
+
+    private static Counts copyOf(Counts c) {
+        Counts out = new Counts();
+        out.iron = c.iron;
+        out.gold = c.gold;
+        out.diamond = c.diamond;
+        out.emerald = c.emerald;
+        return out;
     }
 
     private void onClientTick() {
@@ -287,8 +357,25 @@ public class ResourceTracker {
             teamChestGold = teamCounts.gold;
             teamChestDiamond = teamCounts.diamond;
             teamChestEmerald = teamCounts.emerald;
+            ledger.look(teamCounts.iron, teamCounts.gold, teamCounts.diamond, teamCounts.emerald, System.currentTimeMillis());
+            homeGuiOpen = true;
+            trackOwnChanges(invNow);
+        } else {
+            homeGuiOpen = false;
+        }
+
+        if (!inTeamChestGui) {
+            homeGuiOpen = false;
+            if (wasTeamGui && guiInvCheckpoint != null) {
+                // The chest just closed: count the last change and send what is waiting
+                trackOwnChanges(invNow);
+                TeamChestSync.flush();
+            }
+            guiInvCheckpoint = null;
         }
         wasTeamGui = inTeamChestGui;
+
+        TeamChestSync.tick();
     }
 
     /**
@@ -560,6 +647,10 @@ public class ResourceTracker {
         teamChestGold = 0;
         teamChestDiamond = 0;
         teamChestEmerald = 0;
+        ledger.reset();
+        homeGuiOpen = false;
+        guiInvCheckpoint = null;
+        TeamChestSync.resetGame();
 
         lastIronBase = 0;
         lastGoldBase = 0;

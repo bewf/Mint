@@ -3,6 +3,7 @@ package me.bewf.mint;
 import me.bewf.mint.config.MintConfig;
 import me.bewf.mint.hud.ResourceIconHud;
 import me.bewf.mint.util.ResourceTracker;
+import me.bewf.mint.util.TeamChestSync;
 import me.bewf.mint.util.UpdateCheckListener;
 import me.bewf.mint.extras.Sparkle;
 import net.fabricmc.api.ClientModInitializer;
@@ -23,6 +24,7 @@ public class MintEntrypoint implements ClientModInitializer {
         ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> overlay ? message : Sparkle.decorateChat(message));
 
         new ResourceTracker().register();
+        TeamChestSync.register();
         new UpdateCheckListener().register();
 
         System.out.println("Mint loaded - bewf on top");

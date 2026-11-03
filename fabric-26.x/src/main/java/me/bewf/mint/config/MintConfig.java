@@ -5,12 +5,57 @@ import me.bewf.mint.util.RuntimeInfo;
 import me.bewf.mint.util.UpdateChecker;
 import org.polyfrost.oneconfig.api.config.v1.Config;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Button;
+import org.polyfrost.compose.render.PolyColor;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Checkbox;
+import org.polyfrost.oneconfig.api.config.v1.annotations.Color;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Include;
+import org.polyfrost.oneconfig.api.config.v1.annotations.Switch;
 
 public class MintConfig extends Config {
 
     public static final MintConfig INSTANCE = new MintConfig();
+
+    @Switch(
+            title = "Share Team Chest In Party Chat",
+            description = "Send a message in party chat when you deposit or take things out of the team chest. This will automatically update the HUD for other people with this mod. Only sent while you are in a party.",
+            category = "Team Chest",
+            subcategory = "Party Sync"
+    )
+    public boolean partySync = true;
+
+    @Switch(
+            title = "Read Teammates' Updates",
+            description = "Update your team chest numbers when teammates with this mod deposit or take things out of the team chest.",
+            category = "Team Chest",
+            subcategory = "Party Sync"
+    )
+    public boolean readPartySync = true;
+
+    @Switch(
+            title = "Hide Update Messages",
+            description = "Hide these messages in your chat. Your HUD will still update. If you leave them showing, you can pick their colors below.",
+            category = "Team Chest",
+            subcategory = "Party Sync"
+    )
+    public boolean hideSyncMessages = false;
+
+    @Color(title = "Deposit Color", category = "Team Chest", subcategory = "Party Sync Colors")
+    public PolyColor syncPlusColor = new PolyColor(0xFF55FF55);
+
+    @Color(title = "Withdrawal Color", category = "Team Chest", subcategory = "Party Sync Colors")
+    public PolyColor syncMinusColor = new PolyColor(0xFFFF5555);
+
+    @Color(title = "Iron Color", category = "Team Chest", subcategory = "Resource Colors")
+    public PolyColor ironColor = new PolyColor(0xFFFFFFFF);
+
+    @Color(title = "Gold Color", category = "Team Chest", subcategory = "Resource Colors")
+    public PolyColor goldColor = new PolyColor(0xFFFFAA00);
+
+    @Color(title = "Diamond Color", category = "Team Chest", subcategory = "Resource Colors")
+    public PolyColor diamondColor = new PolyColor(0xFF55FFFF);
+
+    @Color(title = "Emerald Color", category = "Team Chest", subcategory = "Resource Colors")
+    public PolyColor emeraldColor = new PolyColor(0xFF55FF55);
 
     @Checkbox(
             title = "Always Show HUD",
@@ -79,6 +124,9 @@ public class MintConfig extends Config {
 
     @Include
     public boolean hasShownConfigTip = false;
+
+    @Include
+    public boolean hasShownSyncTip = false;
 
     public MintConfig() {
         super("mint.json", "assets/mint/minticon.png", "Mint", Category.HYPIXEL);
