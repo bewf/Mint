@@ -133,9 +133,14 @@ val mainJavaWithoutMint = fileTree("src/main/java") {
     exclude("me/bewf/mint/Mint.java")
 }
 
+// Code shared by every Mint module (team chest sync, chest picking, label maths). Plain Java 8.
+val sharedJava = fileTree("../shared/src/main/java") {
+    include("**/*.java")
+}
+
 tasks.named<JavaCompile>("compileJava") {
     dependsOn(generateVersionedMint)
-    setSource(mainJavaWithoutMint + fileTree(generatedDir))
+    setSource(mainJavaWithoutMint + fileTree(generatedDir) + sharedJava)
 }
 
 tasks.processResources {

@@ -9,6 +9,15 @@ plugins {
 base {
 	archivesName = project.archives_base_name
 }
+
+// Code shared by every Mint module (team chest sync, chest picking, label maths). Plain Java 8.
+sourceSets {
+	main {
+		java {
+			srcDir '../shared/src/main/java'
+		}
+	}
+}
 version = "${project.mod_version}+${project.minecraft_version}"
 group = project.mod_group
 

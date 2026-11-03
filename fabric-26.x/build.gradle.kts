@@ -108,6 +108,11 @@ java {
     }
 }
 
+// Code shared by every Mint module (team chest sync, chest picking, label maths). Plain Java 8.
+sourceSets.named("main") {
+    java.srcDir(rootProject.file("../shared/src/main/java"))
+}
+
 tasks.withType<JavaCompile>().configureEach {
     options.release = requiredJava.majorVersion.toInt()
 }
