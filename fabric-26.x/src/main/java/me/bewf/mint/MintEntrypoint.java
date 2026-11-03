@@ -2,6 +2,7 @@ package me.bewf.mint;
 
 import me.bewf.mint.config.MintConfig;
 import me.bewf.mint.hud.ResourceIconHud;
+import me.bewf.mint.render.WaypointRenderer;
 import me.bewf.mint.util.ResourceTracker;
 import me.bewf.mint.util.TeamChestSync;
 import me.bewf.mint.util.UpdateCheckListener;
@@ -25,6 +26,7 @@ public class MintEntrypoint implements ClientModInitializer {
 
         new ResourceTracker().register();
         TeamChestSync.register();
+        WaypointRenderer.register();
         new UpdateCheckListener().register();
 
         System.out.println("Mint loaded - bewf on top");

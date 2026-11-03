@@ -29,6 +29,18 @@ import org.polyfrost.oneconfig.api.hud.v1.HudAnchor
 import org.polyfrost.oneconfig.api.hud.v1.HudManager
 import org.polyfrost.oneconfig.api.ui.v1.item.PolyItemIcon
 
+/** Lets the Java side read the HUD's colours, so labels in the world match the HUD. */
+object HudColors {
+    @JvmStatic
+    var hud: ResourceIconHud? = null
+
+    @JvmStatic
+    fun enderRgb(): Int = (hud?.enderChestColor?.rawArgb ?: 0xFFBE3FFF.toInt()) and 0xFFFFFF
+
+    @JvmStatic
+    fun teamRgb(): Int = (hud?.teamChestColor?.rawArgb ?: 0xFF55AAFF.toInt()) and 0xFFFFFF
+}
+
 class ResourceIconHud : Hud("mint_resource_hud.json", "Resource Tracker", Hud.Category.PLAYER) {
     @Switch(title = "Show Iron", category = "General", subcategory = "Resources")
     var showIron: Boolean = true
@@ -107,6 +119,8 @@ class ResourceIconHud : Hud("mint_resource_hud.json", "Resource Tracker", Hud.Ca
     var equalLabel: String = ":"
 
     init {
+        if (HudColors.hud == null) HudColors.hud = this
+
         padLeft = 4f
         padRight = 4f
         padTop = 4f

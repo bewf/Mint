@@ -74,7 +74,7 @@ dependencies {
 
     modRuntimeOnly("me.djtheredstoner:DevAuth-fabric:$devauthversion")
 
-    for (module in arrayOf("fabric-events-interaction-v0", "fabric-message-api-v1", "fabric-lifecycle-events-v1")) {
+    for (module in arrayOf("fabric-events-interaction-v0", "fabric-message-api-v1", "fabric-lifecycle-events-v1", "fabric-rendering-v1")) {
         modImplementation(fabricApi.module(module, fapiversion))
     }
 }

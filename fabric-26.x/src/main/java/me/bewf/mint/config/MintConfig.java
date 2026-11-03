@@ -57,6 +57,22 @@ public class MintConfig extends Config {
     @Color(title = "Emerald Color", category = "Team Chest", subcategory = "Resource Colors")
     public PolyColor emeraldColor = new PolyColor(0xFF55FF55);
 
+    @Switch(
+            title = "Team Chest Waypoint",
+            description = "Show a small label above your team chest with what is inside it. It gets smaller the further away you are. This is separate from Track Team Chest.",
+            category = "Team Chest",
+            subcategory = "Waypoints"
+    )
+    public boolean teamChestWaypoint = true;
+
+    @Switch(
+            title = "Ender Chest Waypoint",
+            description = "Show a small label above your Ender Chest with what is inside it. It gets smaller the further away you are.",
+            category = "Team Chest",
+            subcategory = "Waypoints"
+    )
+    public boolean enderChestWaypoint = true;
+
     @Checkbox(
             title = "Always Show HUD",
             description = "Mainly for debugging. If this is required for the HUD to appear, please open an issue on GitHub.",
