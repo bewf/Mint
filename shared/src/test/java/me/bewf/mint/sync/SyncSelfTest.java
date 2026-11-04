@@ -31,6 +31,8 @@ public final class SyncSelfTest {
         picker();
         projection();
         label();
+        sidebar();
+        recent();
         System.out.println(checks + " checks, " + failures + " failed");
         if (failures > 0) System.exit(1);
     }
@@ -244,5 +246,23 @@ public final class SyncSelfTest {
         eq(Numbers.compact(999), "999", "compact 999");
         eq(Numbers.compact(12500), "13k", "compact 12500");
         eq(Numbers.compact(2000), "2k", "compact 2000");
+    }
+
+    private static void sidebar() {
+        check(SidebarTeams.hasOwnTeamLine(Arrays.asList("Diamond II in 5:58", "R Red: \u2713", "G Green: \u2713 YOU")), "hypixel own team line");
+        check(SidebarTeams.hasOwnTeamLine(Arrays.asList("Diamond Upgrade:", "Yellow (You)")), "pika own team line");
+        check(!SidebarTeams.hasOwnTeamLine(Arrays.asList("R Red: \u2713", "G Green: \u2713", "Players: 7/8")), "no own team line");
+        check(!SidebarTeams.hasOwnTeamLine(Arrays.asList("Players: 7/8", "Waiting...", "Map: Yoyo YOU")), "lobby lines are not a team");
+        check(!SidebarTeams.hasOwnTeamLine(null), "null lines");
+    }
+
+    private static void recent() {
+        RecentMessages r = new RecentMessages(10000);
+        r.remember("[Mint | Team Chest: +10 iron #3]", 1000);
+        check(!r.consumeIfOurs("[Mint | Team Chest: +4 gold #4]", 2000), "someone else's message is not ours");
+        check(r.consumeIfOurs("[Mint | Team Chest: +10 iron #3]", 2000), "our echo is recognised");
+        check(!r.consumeIfOurs("[Mint | Team Chest: +10 iron #3]", 2500), "an echo is only dropped once");
+        r.remember("[Mint | Team Chest: -1 dia #5]", 3000);
+        check(!r.consumeIfOurs("[Mint | Team Chest: -1 dia #5]", 20000), "old messages are forgotten");
     }
 }
