@@ -61,7 +61,7 @@ public final class WaypointRenderer {
         if (!cfg.teamChestWaypoint && !cfg.enderChestWaypoint) return;
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || mc.options.hideGui) return;
+        if (mc.player == null || mc.level == null) return;
         if (!ResourceTracker.isActive() && !cfg.showOutsideBedwars) return;
         // The projection assumes the camera sits at the player's eyes
         if (!mc.options.getCameraType().isFirstPerson()) return;

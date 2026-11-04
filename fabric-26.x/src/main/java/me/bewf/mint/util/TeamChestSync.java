@@ -135,7 +135,10 @@ public final class TeamChestSync {
                         + "Want to hide these messages or stop them from being sent? ").withStyle(ChatFormatting.GRAY))
                 .append(click)
                 .append(Component.literal(".").withStyle(ChatFormatting.GRAY));
-        mc.player.displayClientMessage(tip, false);
+        // The method name differs between versions, so it is looked up by name like the other chat messages
+        if (!ReflectUtil.tryCall(mc.player, "displayClientMessage", tip, false)) {
+            ReflectUtil.tryCall(mc.player, "sendSystemMessage", tip);
+        }
     }
 
     /** Looks at one chat line. Returns false to hide it from the chat. */
