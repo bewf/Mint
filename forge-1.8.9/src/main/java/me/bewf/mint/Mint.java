@@ -3,6 +3,11 @@ package me.bewf.mint;
 import me.bewf.mint.config.MintConfig;
 import me.bewf.mint.util.ResourceTracker;
 import me.bewf.mint.util.UpdateCheckListener;
+import me.bewf.mint.extras.Sparkle;
+import me.bewf.mint.render.WaypointRenderer;
+import me.bewf.mint.util.MintCommand;
+import me.bewf.mint.util.TeamChestSync;
+import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -25,6 +30,11 @@ public class Mint {
         MinecraftForge.EVENT_BUS.register(new ResourceTracker());
 
         MinecraftForge.EVENT_BUS.register(new UpdateCheckListener());
+        MinecraftForge.EVENT_BUS.register(new TeamChestSync.Listener());
+        MinecraftForge.EVENT_BUS.register(new WaypointRenderer());
+        MinecraftForge.EVENT_BUS.register(new Sparkle());
+        ClientCommandHandler.instance.registerCommand(new MintCommand());
+        Sparkle.startNameLookup();
 
         System.out.println("Mint loaded - bewf on top");
     }

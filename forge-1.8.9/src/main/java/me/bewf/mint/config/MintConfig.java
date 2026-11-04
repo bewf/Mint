@@ -140,6 +140,70 @@ public class MintConfig extends Config {
     public boolean showEmerald = true;
 
     @Checkbox(
+            name = "Share Team Chest In Party Chat",
+            description = "Send a message in party chat when you deposit or take things out of the team chest. This will automatically update the HUD for other people with this mod. Only sent while you are in a party.",
+            category = "Team Chest",
+            subcategory = "Party Sync"
+    )
+    public boolean partySync = true;
+
+    @Checkbox(
+            name = "Read Teammates' Updates",
+            description = "Update your team chest numbers when teammates with this mod deposit or take things out of the team chest.",
+            category = "Team Chest",
+            subcategory = "Party Sync"
+    )
+    public boolean readPartySync = true;
+
+    @Checkbox(
+            name = "Hide Update Messages",
+            description = "Hide these messages in your chat. Your HUD will still update. If you leave them showing, you can pick their colors below.",
+            category = "Team Chest",
+            subcategory = "Party Sync"
+    )
+    public boolean hideSyncMessages = false;
+
+    @Color(name = "Deposit Color", category = "Team Chest", subcategory = "Party Sync Colors")
+    public OneColor syncPlusColor = new OneColor(85, 255, 85);
+
+    @Color(name = "Withdrawal Color", category = "Team Chest", subcategory = "Party Sync Colors")
+    public OneColor syncMinusColor = new OneColor(255, 85, 85);
+
+    @Color(name = "Iron Color", category = "Team Chest", subcategory = "Resource Colors")
+    public OneColor ironColor = new OneColor(255, 255, 255);
+
+    @Color(name = "Gold Color", category = "Team Chest", subcategory = "Resource Colors")
+    public OneColor goldColor = new OneColor(255, 170, 0);
+
+    @Color(name = "Diamond Color", category = "Team Chest", subcategory = "Resource Colors")
+    public OneColor diamondColor = new OneColor(85, 255, 255);
+
+    @Color(name = "Emerald Color", category = "Team Chest", subcategory = "Resource Colors")
+    public OneColor emeraldColor = new OneColor(85, 255, 85);
+
+    @Checkbox(
+            name = "Team Chest Waypoint",
+            description = "Show a small label above your team chest with what is inside it. It gets smaller the further away you are. This is separate from Track Team Chest.",
+            category = "Team Chest",
+            subcategory = "Waypoints"
+    )
+    public boolean teamChestWaypoint = true;
+
+    @Checkbox(
+            name = "Ender Chest Waypoint",
+            description = "Show a small label above your Ender Chest with what is inside it. It gets smaller the further away you are.",
+            category = "Team Chest",
+            subcategory = "Waypoints"
+    )
+    public boolean enderChestWaypoint = true;
+
+    @Checkbox(
+            name = "Sparkle",
+            category = "Debug"
+    )
+    public boolean fancyNames = true;
+
+    @Checkbox(
             name = "Always Show HUD",
             description = "Mainly for debugging. If this is required for the HUD to appear, please open an issue on GitHub.",
             category = "Debug"
@@ -196,6 +260,9 @@ public class MintConfig extends Config {
 
     // Internal flag to track if config tip has been shown (hidden from UI)
     public boolean hasShownConfigTip = false;
+
+    // Set after the one time party sync tip has been shown (hidden from UI)
+    public boolean hasShownSyncTip = false;
 
     @Text(
             name = "Addition Label",
