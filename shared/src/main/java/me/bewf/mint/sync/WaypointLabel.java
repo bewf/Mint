@@ -32,12 +32,6 @@ public final class WaypointLabel {
         }
     }
 
-    /** The first version of the label, kept until both renderers use the one below. */
-    public static List<Part> parts(int iron, int gold, int diamond, int emerald, boolean includeEmerald) {
-        boolean[] show = {true, true, true, includeEmerald};
-        return parts(new int[]{iron, gold, diamond, emerald}, new int[Delta.COUNT], show, AMOUNT_CHEST);
-    }
-
     /**
      * @param chest     what is in the chest, in {@link Delta} order (iron, gold, diamond, emerald)
      * @param inventory what the player is carrying, same order

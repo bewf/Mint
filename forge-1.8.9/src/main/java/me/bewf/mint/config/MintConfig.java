@@ -5,7 +5,9 @@ import cc.polyfrost.oneconfig.config.annotations.Button;
 import cc.polyfrost.oneconfig.config.annotations.Checkbox;
 import cc.polyfrost.oneconfig.config.annotations.Color;
 import cc.polyfrost.oneconfig.config.annotations.DualOption;
+import cc.polyfrost.oneconfig.config.annotations.Dropdown;
 import cc.polyfrost.oneconfig.config.annotations.HUD;
+import cc.polyfrost.oneconfig.config.annotations.Slider;
 import cc.polyfrost.oneconfig.config.annotations.Text;
 import cc.polyfrost.oneconfig.config.core.OneColor;
 import cc.polyfrost.oneconfig.config.data.Mod;
@@ -175,19 +177,102 @@ public class MintConfig extends Config {
 
     @Checkbox(
             name = "Team Chest Waypoint",
-            description = "Show a small label above your team chest with what is inside it. It gets smaller the further away you are. This is separate from Track Team Chest.",
+            description = "Show a small label above your team chest with what is inside it. This is separate from Track Team Chest.",
             category = "Team Chest",
-            subcategory = "Waypoints"
+            subcategory = "Team Chest Waypoint"
     )
     public boolean teamChestWaypoint = true;
 
+    @Dropdown(
+            name = "Team Chest Amount",
+            description = "Chest only shows what is in the chest. Chest + inventory adds what you are carrying.",
+            category = "Team Chest",
+            subcategory = "Team Chest Waypoint",
+            options = {"Chest only", "Chest + inventory"}
+    )
+    public int teamChestWaypointAmount = 0;
+
+    @Checkbox(name = "Show Iron", category = "Team Chest", subcategory = "Team Chest Waypoint")
+    public boolean teamWaypointIron = true;
+
+    @Checkbox(name = "Show Gold", category = "Team Chest", subcategory = "Team Chest Waypoint")
+    public boolean teamWaypointGold = true;
+
+    @Checkbox(name = "Show Diamond", category = "Team Chest", subcategory = "Team Chest Waypoint")
+    public boolean teamWaypointDiamond = true;
+
+    @Checkbox(name = "Show Emerald", category = "Team Chest", subcategory = "Team Chest Waypoint")
+    public boolean teamWaypointEmerald = true;
+
     @Checkbox(
             name = "Ender Chest Waypoint",
-            description = "Show a small label above your Ender Chest with what is inside it. It gets smaller the further away you are.",
+            description = "Show a small label above your Ender Chest with what is inside it.",
             category = "Team Chest",
-            subcategory = "Waypoints"
+            subcategory = "Ender Chest Waypoint"
     )
     public boolean enderChestWaypoint = true;
+
+    @Dropdown(
+            name = "Ender Chest Amount",
+            description = "Chest only shows what is in the Ender Chest. Chest + inventory adds what you are carrying.",
+            category = "Team Chest",
+            subcategory = "Ender Chest Waypoint",
+            options = {"Chest only", "Chest + inventory"}
+    )
+    public int enderChestWaypointAmount = 0;
+
+    @Checkbox(name = "Show Iron", category = "Team Chest", subcategory = "Ender Chest Waypoint")
+    public boolean enderWaypointIron = true;
+
+    @Checkbox(name = "Show Gold", category = "Team Chest", subcategory = "Ender Chest Waypoint")
+    public boolean enderWaypointGold = true;
+
+    @Checkbox(name = "Show Diamond", category = "Team Chest", subcategory = "Ender Chest Waypoint")
+    public boolean enderWaypointDiamond = true;
+
+    @Checkbox(name = "Show Emerald", category = "Team Chest", subcategory = "Ender Chest Waypoint")
+    public boolean enderWaypointEmerald = true;
+
+    @Slider(
+            name = "Waypoint Size",
+            description = "Makes both labels bigger or smaller.",
+            category = "Team Chest",
+            subcategory = "Waypoint Style",
+            min = 0.5f, max = 2f
+    )
+    public float waypointScale = 1f;
+
+    @Slider(
+            name = "Max Distance",
+            description = "Labels further away than this many blocks are hidden.",
+            category = "Team Chest",
+            subcategory = "Waypoint Style",
+            min = 16f, max = 128f
+    )
+    public float waypointMaxDistance = 64f;
+
+    @Checkbox(
+            name = "Shrink With Distance",
+            description = "Labels get smaller the further away they are. Off keeps them one size.",
+            category = "Team Chest",
+            subcategory = "Waypoint Style"
+    )
+    public boolean waypointShrink = true;
+
+    @Checkbox(
+            name = "Show Letters",
+            description = "Put a small letter after each amount (i, g, d, e). Off colors the amount with the resource color instead.",
+            category = "Team Chest",
+            subcategory = "Waypoint Style"
+    )
+    public boolean waypointLetters = true;
+
+    @Checkbox(
+            name = "Text Shadow",
+            category = "Team Chest",
+            subcategory = "Waypoint Style"
+    )
+    public boolean waypointShadow = true;
 
     @Checkbox(
             name = "Sparkle",
