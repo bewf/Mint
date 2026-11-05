@@ -55,6 +55,11 @@ public final class Projection {
         return new double[]{sx, sy, Math.sqrt(dx * dx + dy * dy + dz * dz)};
     }
 
+    /** Same as {@link #scaleFor(double)}, or always full size when shrinking is switched off. */
+    public static float scaleFor(double distance, boolean shrink) {
+        return shrink ? scaleFor(distance) : 1.0f;
+    }
+
     /** Label size: full size up close, shrinking with distance, never vanishing completely. */
     public static float scaleFor(double distance) {
         double s = 6.0 / Math.max(distance, 1.0);

@@ -236,12 +236,33 @@ public final class SyncSelfTest {
     }
 
     private static void label() {
-        List<WaypointLabel.Part> parts = WaypointLabel.parts(64, 0, 3, 8, true);
+        boolean[] all = {true, true, true, true};
+        int[] none = {0, 0, 0, 0};
+        List<WaypointLabel.Part> parts = WaypointLabel.parts(new int[]{64, 0, 3, 8}, none, all, WaypointLabel.AMOUNT_CHEST);
         eq(parts.size(), 3, "zero resources are left out");
         eq(parts.get(0).count + parts.get(0).letter, "64i", "iron part");
         eq(parts.get(2).count + parts.get(2).letter, "8e", "emerald part");
-        eq(WaypointLabel.parts(64, 0, 3, 8, false).size(), 2, "ender chest label has no emeralds");
-        eq(WaypointLabel.parts(0, 0, 0, 0, true).size(), 0, "empty chest has no label");
+        eq(WaypointLabel.parts(new int[]{64, 0, 3, 8}, none, new boolean[]{true, true, true, false},
+                WaypointLabel.AMOUNT_CHEST).size(), 2, "a resource switched off is left out");
+        eq(WaypointLabel.parts(new int[]{0, 5, 0, 0}, none, new boolean[]{false, false, false, true},
+                WaypointLabel.AMOUNT_CHEST).size(), 0, "only emeralds on and none in the chest");
+        eq(WaypointLabel.parts(new int[]{0, 0, 0, 9}, none, new boolean[]{false, false, false, true},
+                WaypointLabel.AMOUNT_CHEST).get(0).letter, 'e', "emeralds can show on any chest");
+        eq(WaypointLabel.parts(none, none, all, WaypointLabel.AMOUNT_CHEST).size(), 0, "empty chest has no label");
+
+        // chest plus inventory
+        int[] inv = {10, 0, 2, 0};
+        List<WaypointLabel.Part> total = WaypointLabel.parts(new int[]{64, 0, 3, 8}, inv, all, WaypointLabel.AMOUNT_TOTAL);
+        eq(total.get(0).count, "74", "iron is chest plus inventory");
+        eq(total.get(1).count + total.get(1).letter, "5d", "diamonds are chest plus inventory");
+        eq(total.get(2).count + total.get(2).letter, "8e", "emeralds with nothing carried");
+        eq(WaypointLabel.parts(new int[]{64, 0, 3, 8}, inv, all, WaypointLabel.AMOUNT_CHEST).get(0).count, "64",
+                "chest only ignores the inventory");
+        eq(WaypointLabel.parts(none, inv, all, WaypointLabel.AMOUNT_TOTAL).get(0).count, "10",
+                "total counts the inventory even when the chest is empty");
+
+        check(Projection.scaleFor(50, false) == 1.0f, "no shrinking keeps full size");
+        check(Projection.scaleFor(12, true) == 0.5f, "shrinking matches scaleFor");
         eq(Numbers.compact(1200), "1.2k", "compact 1200");
         eq(Numbers.compact(999), "999", "compact 999");
         eq(Numbers.compact(12500), "13k", "compact 12500");
