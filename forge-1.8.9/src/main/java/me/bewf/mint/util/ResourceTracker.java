@@ -80,6 +80,7 @@ public class ResourceTracker {
     // Ticks left in which the area around the spawn is still searched (chunks may arrive late)
     private static int scanTicksLeft = 0;
     private static int ticksSinceChestTouch = 1000;
+    private static int ticksSinceEnderTouch = 1000;
 
     private static final int TELEPORT_BLOCKS = 30;
     private static final int SCAN_INTERVAL_TICKS = 10;
@@ -170,6 +171,7 @@ public class ResourceTracker {
         Block block = mc.theWorld.getBlockState(mop.getBlockPos()).getBlock();
 
         if (block == Blocks.ender_chest) {
+            ticksSinceEnderTouch = 0;
             if (!punch) return;
             if (held == null || !isTrackedItem(held.getItem())) return;
             pendingDeposits.add(new PendingDeposit(
@@ -312,6 +314,7 @@ public class ResourceTracker {
         }
 
         ticksSinceChestTouch++;
+        ticksSinceEnderTouch++;
         updateHomeChests(mc);
 
         Counts invNow = countPlayerInventory(mc);
@@ -553,6 +556,18 @@ public class ResourceTracker {
         }
     }
 
+    // A language pack can rename the chest windows ("Ender coffer"), so the block the player clicked
+    // decides when the title is no help. A window opens within a second or two of the click.
+    private static final int OPEN_WINDOW_TICKS = 40;
+
+    private static boolean openedEnderBlock() {
+        return ticksSinceEnderTouch < OPEN_WINDOW_TICKS && ticksSinceEnderTouch <= ticksSinceChestTouch;
+    }
+
+    private static boolean openedChestBlock() {
+        return ticksSinceChestTouch < OPEN_WINDOW_TICKS && ticksSinceChestTouch < ticksSinceEnderTouch;
+    }
+
     private boolean isEnderChestGuiOpen(Minecraft mc) {
         if (!(mc.currentScreen instanceof GuiChest))
             return false;
@@ -579,7 +594,7 @@ public class ResourceTracker {
                         .stripControlCodes(name)
                         .toLowerCase();
 
-        return name.contains("ender chest");
+        return name.contains("ender") || (!name.contains("chest") && openedEnderBlock());
     }
 
     private boolean isTeamChestGuiOpen(Minecraft mc) {
@@ -608,7 +623,7 @@ public class ResourceTracker {
                         .stripControlCodes(name)
                         .toLowerCase();
 
-        return name.contains("chest") && !name.contains("ender");
+        return !name.contains("ender") && (name.contains("chest") || openedChestBlock());
     }
 
     private Counts countOpenEnderChestContainer(
@@ -811,6 +826,7 @@ public class ResourceTracker {
         spawnCaptureCountdown = -1;
         scanTicksLeft = 0;
         ticksSinceChestTouch = 1000;
+        ticksSinceEnderTouch = 1000;
         lastChestPos = null;
         ignoredChestsLogged.clear();
         gameStartSeen = false;

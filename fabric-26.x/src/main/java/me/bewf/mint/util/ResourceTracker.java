@@ -88,6 +88,7 @@ public class ResourceTracker {
     // Ticks left in which the area around the spawn is still searched (chunks may arrive late)
     private static int scanTicksLeft = 0;
     private static int ticksSinceChestTouch = 1000;
+    private static int ticksSinceEnderTouch = 1000;
 
     private static BlockPos lastTickPos = null;
     private static final int TELEPORT_BLOCKS = 30;
@@ -150,6 +151,8 @@ public class ResourceTracker {
             if (block == Blocks.CHEST) {
                 lastChestPos = hit.getBlockPos().immutable();
                 ticksSinceChestTouch = 0;
+            } else if (block == Blocks.ENDER_CHEST) {
+                ticksSinceEnderTouch = 0;
             }
             return InteractionResult.PASS;
         });
@@ -167,6 +170,7 @@ public class ResourceTracker {
         ItemStack held = player.getItemInHand(hand);
 
         if (world.getBlockState(pos).getBlock() == Blocks.ENDER_CHEST) {
+            ticksSinceEnderTouch = 0;
             if (held.isEmpty() || !isTrackedItem(held.getItem())) return InteractionResult.PASS;
             // Several punches before the server removes the items would each count the same deposit
             for (PendingDeposit existing : pendingDeposits) {
@@ -305,6 +309,7 @@ public class ResourceTracker {
         }
 
         ticksSinceChestTouch++;
+        ticksSinceEnderTouch++;
         updateHomeChests(mc);
 
         Counts invNow = countPlayerInventory(mc);
@@ -555,14 +560,26 @@ public class ResourceTracker {
         return StringUtil.stripColor(name).toLowerCase();
     }
 
+    // A language pack can rename the chest windows ("Ender coffer"), so the block the player clicked
+    // decides when the title is no help. A window opens within a second or two of the click.
+    private static final int OPEN_WINDOW_TICKS = 40;
+
+    private static boolean openedEnderBlock() {
+        return ticksSinceEnderTouch < OPEN_WINDOW_TICKS && ticksSinceEnderTouch <= ticksSinceChestTouch;
+    }
+
+    private static boolean openedChestBlock() {
+        return ticksSinceChestTouch < OPEN_WINDOW_TICKS && ticksSinceChestTouch < ticksSinceEnderTouch;
+    }
+
     private boolean isEnderChestGuiOpen(Minecraft mc) {
         String name = openChestTitle(mc);
-        return name != null && name.contains("ender chest");
+        return name != null && (name.contains("ender") || (!name.contains("chest") && openedEnderBlock()));
     }
 
     private boolean isTeamChestGuiOpen(Minecraft mc) {
         String name = openChestTitle(mc);
-        return name != null && name.contains("chest") && !name.contains("ender");
+        return name != null && !name.contains("ender") && (name.contains("chest") || openedChestBlock());
     }
 
     private Counts countOpenChestContainer(Minecraft mc) {
@@ -684,6 +701,7 @@ public class ResourceTracker {
         spawnCaptureCountdown = -1;
         scanTicksLeft = 0;
         ticksSinceChestTouch = 1000;
+        ticksSinceEnderTouch = 1000;
         lastChestPos = null;
         ignoredChestsLogged.clear();
         gameStartSeen = false;
