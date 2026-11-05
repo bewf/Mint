@@ -4,6 +4,7 @@ import me.bewf.mint.config.MintConfig;
 import me.bewf.mint.sync.ChestBuffer;
 import me.bewf.mint.sync.Delta;
 import me.bewf.mint.sync.PartyState;
+import me.bewf.mint.sync.RecentMessages;
 import me.bewf.mint.sync.TeamChestMessage;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
@@ -45,6 +46,9 @@ public final class TeamChestSync {
 
     // The command the "click here" in the one time tip runs. It is caught before it reaches the server.
     private static final String SETTINGS_COMMAND = "mint settings";
+
+    // Party messages we sent ourselves, so the echo from the server is not counted a second time
+    private static final RecentMessages SENT = new RecentMessages(15000L);
 
     // The last counter seen from each sender, so a repeated message is not applied twice
     private static final Map<String, Integer> LAST_SEQ = new HashMap<>();
@@ -89,6 +93,7 @@ public final class TeamChestSync {
     public static void resetGame() {
         BUFFER.reset();
         LAST_SEQ.clear();
+        SENT.clear();
     }
 
     private static void send(Delta d) {
@@ -98,6 +103,7 @@ public final class TeamChestSync {
         String body = TeamChestMessage.format(d, nextSeq);
         if (body == null) return;
         nextSeq = (nextSeq + 1) % 100;
+        SENT.remember(body, System.currentTimeMillis());
 
         Object connection = mc.getConnection();
         boolean sent = connection != null && ReflectUtil.tryCall(connection, "sendCommand", "pc " + body);
@@ -151,7 +157,7 @@ public final class TeamChestSync {
         TeamChestMessage.Parsed update = TeamChestMessage.parse(line.body);
         if (update == null) return true;
 
-        applyFrom(line.sender, update);
+        if (!SENT.consumeIfOurs(line.body, System.currentTimeMillis())) applyFrom(line.sender, update);
         if (MintConfig.INSTANCE.readPartySync) requestTip();
         return !MintConfig.INSTANCE.hideSyncMessages;
     }
