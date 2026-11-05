@@ -59,12 +59,17 @@ public final class TeamChestSync {
             return onIncoming(message.getString());
         });
         ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> overlay ? message : colorize(message));
-        ClientSendMessageEvents.ALLOW_COMMAND.register(command -> {
-            String c = command.startsWith("/") ? command.substring(1) : command;
-            if (!c.equals(SETTINGS_COMMAND)) return true;
-            SettingsLink.open();
-            return false;
-        });
+        // A typed "/mint settings". The click in the tip goes through SettingsClickMixin instead.
+        ClientSendMessageEvents.ALLOW_COMMAND.register(command -> !handleSettingsCommand(command));
+    }
+
+    /** Opens the Mint settings when the command is the one the tip links to. Returns true if it was. */
+    public static boolean handleSettingsCommand(String command) {
+        if (command == null) return false;
+        String c = command.startsWith("/") ? command.substring(1) : command;
+        if (!c.trim().equals(SETTINGS_COMMAND)) return false;
+        SettingsLink.open();
+        return true;
     }
 
     /** The player changed the team chest. Deposits are positive, withdrawals negative. */
