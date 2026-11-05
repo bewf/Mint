@@ -62,6 +62,8 @@ public class ResourceTracker {
 
     private static BlockPos spawnPos = null;
     private static double spawnYaw = 0.0;
+    // True once the sidebar or the start message says the game is running
+    private static boolean gameStartSeen = false;
     private static int spawnCaptureCountdown = -1;
     private static int scanTicksLeft = 0;
     private static int ticksSinceChestTouch = 1000;
@@ -159,6 +161,7 @@ public class ResourceTracker {
 
         // Players are sent to their bases when the game starts. Read the spawn a moment later.
         if (msg.contains("Protect your bed and destroy the enemy beds")) {
+            gameStartSeen = true;
             spawnCaptureCountdown = 20;
         }
 
@@ -295,12 +298,19 @@ public class ResourceTracker {
 
     /** Reads the spawn point when the game starts and searches around it for the team chest and Ender Chest. */
     private static void updateHomeChests(Minecraft mc) {
+        // Team chest search is for Hypixel only. Other servers keep the first chest touched.
+        if (!BedwarsDetector.onHypixel()) return;
+        if (!gameStartSeen && BedwarsDetector.hasOwnTeamLine()) {
+            gameStartSeen = true;
+            if (spawnCaptureCountdown <= 0) spawnCaptureCountdown = 20;
+        }
+
         double[] pos = McCompat.playerPos(mc.player);
         if (pos == null) return;
         BlockPos here = new BlockPos((int) Math.floor(pos[0]), (int) Math.floor(pos[1]), (int) Math.floor(pos[2]));
 
         // A jump of many blocks in one tick is a teleport, such as lobby to base
-        if (lastTickPos != null && homeChestPos == null && spawnCaptureCountdown < 0
+        if (lastTickPos != null && homeChestPos == null && spawnCaptureCountdown < 0 && gameStartSeen
                 && Math.abs(here.getX() - lastTickPos.getX()) + Math.abs(here.getZ() - lastTickPos.getZ()) > TELEPORT_BLOCKS) {
             spawnCaptureCountdown = 20;
         }
@@ -309,7 +319,7 @@ public class ResourceTracker {
         if (spawnCaptureCountdown > 0 && --spawnCaptureCountdown == 0) {
             spawnCaptureCountdown = -1;
             captureSpawn(here, pos[3]);
-        } else if (spawnPos == null) {
+        } else if (spawnPos == null && gameStartSeen) {
             captureSpawn(here, pos[3]);
         }
 
@@ -591,6 +601,7 @@ public class ResourceTracker {
         scanTicksLeft = 0;
         ticksSinceChestTouch = 1000;
         ignoredChestsLogged.clear();
+        gameStartSeen = false;
 
         lastIronBase = 0;
         lastGoldBase = 0;

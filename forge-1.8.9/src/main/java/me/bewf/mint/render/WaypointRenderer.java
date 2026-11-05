@@ -3,6 +3,7 @@ package me.bewf.mint.render;
 import me.bewf.mint.config.MintConfig;
 import me.bewf.mint.sync.Projection;
 import me.bewf.mint.sync.WaypointLabel;
+import me.bewf.mint.util.BedwarsDetector;
 import me.bewf.mint.util.ResourceTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -37,6 +38,7 @@ public class WaypointRenderer {
     private void render(float partialTicks) {
         MintConfig cfg = MintConfig.INSTANCE;
         if (!cfg.teamChestWaypoint && !cfg.enderChestWaypoint) return;
+        if (!BedwarsDetector.onHypixel()) return;
         if (!ResourceTracker.isActive() && !cfg.showOutsideBedwars) return;
 
         Minecraft mc = Minecraft.getMinecraft();

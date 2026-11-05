@@ -65,7 +65,7 @@ public final class TeamChestSync {
 
     /** The player changed the team chest. Deposits are positive, withdrawals negative. */
     public static void record(Delta change) {
-        if (!MintConfig.INSTANCE.partySync || !party.canSend()) return;
+        if (!MintConfig.INSTANCE.partySync || !party.canSend() || !BedwarsDetector.onHypixel()) return;
         BUFFER.add(change, System.currentTimeMillis());
     }
 
@@ -157,7 +157,7 @@ public final class TeamChestSync {
     }
 
     private static void applyFrom(String sender, TeamChestMessage.Parsed update) {
-        if (!MintConfig.INSTANCE.readPartySync) return;
+        if (!MintConfig.INSTANCE.readPartySync || !BedwarsDetector.onHypixel()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 

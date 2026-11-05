@@ -6,6 +6,7 @@ import me.bewf.mint.hud.HudColors;
 import me.bewf.mint.sync.Delta;
 import me.bewf.mint.sync.Projection;
 import me.bewf.mint.sync.WaypointLabel;
+import me.bewf.mint.util.BedwarsDetector;
 import me.bewf.mint.util.ResourceTracker;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.Minecraft;
@@ -59,6 +60,7 @@ public final class WaypointRenderer {
     *///?}
         MintConfig cfg = MintConfig.INSTANCE;
         if (!cfg.teamChestWaypoint && !cfg.enderChestWaypoint) return;
+        if (!BedwarsDetector.onHypixel()) return;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;

@@ -1,9 +1,12 @@
 package me.bewf.mint.util;
 
+import me.bewf.mint.sync.SidebarTeams;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.options.ServerListEntry;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.scoreboard.ScoreboardScore;
+import net.minecraft.scoreboard.team.Team;
 import net.minecraft.text.StringUtils;
 
 import java.util.ArrayList;
@@ -25,6 +28,41 @@ public class BedwarsDetector {
         List<String> lines = getSidebarLines(sb, sidebar);
 
         return isBedwarsText(title, lines);
+    }
+
+    /** True while connected to Hypixel. The team chest features only run there for now. */
+    public static boolean onHypixel() {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null) return false;
+            ServerListEntry server = mc.getCurrentServerEntry();
+            return server != null && server.ip != null && server.ip.toLowerCase().contains("hypixel");
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * True once a game is running. The sidebar then lists every team and marks the player's own with YOU.
+     * The lines are rebuilt from the scoreboard team's prefix and suffix, because that is where the text is.
+     */
+    public static boolean hasOwnTeamLine() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.world == null || mc.world.getScoreboard() == null) return false;
+
+        Scoreboard sb = mc.world.getScoreboard();
+        ScoreboardObjective sidebar = sb.getDisplayObjective(SIDEBAR_SLOT);
+        if (sidebar == null) return false;
+
+        List<String> lines = new ArrayList<String>();
+        int count = 0;
+        for (ScoreboardScore s : sb.getScores(sidebar)) {
+            if (s == null || s.getOwner() == null) continue;
+            Team team = sb.getTeamOfMember(s.getOwner());
+            lines.add(clean(Team.getMemberDisplayName(team, s.getOwner())));
+            if (++count >= 15) break;
+        }
+        return SidebarTeams.hasOwnTeamLine(lines);
     }
 
     private static boolean isBedwarsText(String title, List<String> lines) {

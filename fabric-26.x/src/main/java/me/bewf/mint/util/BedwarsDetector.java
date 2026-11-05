@@ -1,5 +1,6 @@
 package me.bewf.mint.util;
 
+import me.bewf.mint.sync.SidebarTeams;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.util.StringUtil;
@@ -30,6 +31,38 @@ public class BedwarsDetector {
         }
 
         return isBedwarsText(title, lines);
+    }
+
+    /** True while connected to Hypixel. The team chest features only run there for now. */
+    public static boolean onHypixel() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc != null && isHypixel(mc);
+    }
+
+    /**
+     * True once a game is running. The sidebar then lists every team and marks the player's own with YOU.
+     * The lines are rebuilt from the scoreboard team's prefix and suffix, because that is where the text is.
+     */
+    public static boolean hasOwnTeamLine() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.level == null || mc.level.getScoreboard() == null) return false;
+
+        Scoreboard sb = mc.level.getScoreboard();
+        Objective sidebar = sb.getDisplayObjective(DisplaySlot.SIDEBAR);
+        if (sidebar == null) return false;
+
+        List<String> lines = new ArrayList<>();
+        int count = 0;
+        for (PlayerScoreEntry entry : sb.listPlayerScores(sidebar)) {
+            if (entry == null || entry.owner() == null) continue;
+            String name = entry.owner();
+            net.minecraft.world.scores.PlayerTeam team = sb.getPlayersTeam(name);
+            String full = team == null ? name
+                    : team.getPlayerPrefix().getString() + name + team.getPlayerSuffix().getString();
+            lines.add(clean(full));
+            if (++count >= 15) break;
+        }
+        return SidebarTeams.hasOwnTeamLine(lines);
     }
 
     private static boolean isHypixel(Minecraft mc) {

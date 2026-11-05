@@ -98,7 +98,7 @@ final class McCompat {
             Object scoreboard = world.getClass().getMethod("getScoreboard").invoke(world);
             for (Method m : scoreboard.getClass().getMethods()) {
                 if (m.getParameterCount() == 1 && m.getParameterTypes()[0] == String.class
-                        && (m.getName().equals("getPlayerTeam") || m.getName().equals("getPlayersTeam"))) {
+                        && (m.getName().equals("getTeamOfMember") || m.getName().equals("getPlayerTeam") || m.getName().equals("getPlayersTeam"))) {
                     return m.invoke(scoreboard, playerName);
                 }
             }

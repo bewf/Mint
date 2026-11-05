@@ -74,6 +74,8 @@ public class ResourceTracker {
     private static float spawnYaw = 0f;
     private static BlockPos lastTickPos = null;
     // Ticks until the spawn point is read after the game start message, so the teleport to the base is done
+    // True once the sidebar or the start message says the game is running
+    private static boolean gameStartSeen = false;
     private static int spawnCaptureCountdown = -1;
     // Ticks left in which the area around the spawn is still searched (chunks may arrive late)
     private static int scanTicksLeft = 0;
@@ -193,6 +195,7 @@ public class ResourceTracker {
 
         // Players are sent to their bases when the game starts. Read the spawn a moment later.
         if (msg.contains("Protect your bed and destroy the enemy beds")) {
+            gameStartSeen = true;
             spawnCaptureCountdown = 20;
         }
 
@@ -446,10 +449,17 @@ public class ResourceTracker {
 
     /** Reads the spawn point when the game starts and searches around it for the team chest and Ender Chest. */
     private void updateHomeChests(Minecraft mc) {
+        // Team chest search is for Hypixel only. Other servers keep the first chest touched.
+        if (!BedwarsDetector.onHypixel()) return;
+        if (!gameStartSeen && BedwarsDetector.hasOwnTeamLine()) {
+            gameStartSeen = true;
+            if (spawnCaptureCountdown <= 0) spawnCaptureCountdown = 20;
+        }
+
         // A jump of many blocks in one tick is a teleport, such as lobby to base. If the team chest is
         // still unknown, read the spawn again shortly after it, even when the start message was missed.
         BlockPos here = playerBlockPos(mc);
-        if (lastTickPos != null && homeChestPos == null && spawnCaptureCountdown < 0
+        if (lastTickPos != null && homeChestPos == null && spawnCaptureCountdown < 0 && gameStartSeen
                 && manhattan(here, lastTickPos) > TELEPORT_BLOCKS) {
             spawnCaptureCountdown = 20;
         }
@@ -458,7 +468,7 @@ public class ResourceTracker {
         if (spawnCaptureCountdown > 0 && --spawnCaptureCountdown == 0) {
             spawnCaptureCountdown = -1;
             captureSpawn(mc);
-        } else if (spawnPos == null) {
+        } else if (spawnPos == null && gameStartSeen) {
             // Joined a game that is already running, so no start message will come
             captureSpawn(mc);
         }
@@ -803,6 +813,7 @@ public class ResourceTracker {
         ticksSinceChestTouch = 1000;
         lastChestPos = null;
         ignoredChestsLogged.clear();
+        gameStartSeen = false;
     }
 
     private static class Counts {
