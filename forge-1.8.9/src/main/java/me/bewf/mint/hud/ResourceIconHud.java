@@ -137,15 +137,7 @@ public class ResourceIconHud extends BasicHud {
         GlStateManager.translate(textX, textY, 0f);
         GlStateManager.scale(textScale, textScale, 1f);
 
-        float drawn;
-
-        if (!safeStorageColors()) {
-            String full = buildPlainText(inv, ec, tc);
-            fr.drawStringWithShadow(full, 0, 0, 0xFFFFFF);
-            drawn = fr.getStringWidth(full) * textScale;
-        } else {
-            drawn = drawColoredText(fr, 0, 0, inv, ec, tc, textScale);
-        }
+        float drawn = drawColoredText(fr, 0, 0, inv, ec, tc, textScale);
 
         GlStateManager.popMatrix();
 
@@ -373,11 +365,6 @@ public class ResourceIconHud extends BasicHud {
     private boolean safeHideWhenZero() {
         MintConfig cfg = safeConfig();
         return cfg != null && cfg.hideWhenZero;
-    }
-
-    private boolean safeStorageColors() {
-        MintConfig cfg = safeConfig();
-        return cfg == null || cfg.storageColors;
     }
 
     private boolean safeTrackTeamChest() {

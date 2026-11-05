@@ -64,14 +64,6 @@ public class MintConfig extends Config {
     )
     public boolean trackTeamChest = false;
 
-    @Checkbox(
-            name = "Storage Colors",
-            description = "Colors inventory, ender chest, total, and separators.",
-            category = "HUD",
-            subcategory = "Colors"
-    )
-    public boolean storageColors = true;
-
     @Color(
             name = "Inventory Color",
             category = "HUD",

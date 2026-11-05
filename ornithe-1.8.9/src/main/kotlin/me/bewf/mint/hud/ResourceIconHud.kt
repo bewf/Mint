@@ -70,13 +70,6 @@ class ResourceIconHud : Hud("mint_resource_hud.json", "Resource Tracker", Hud.Ca
     )
     var trackTeamChest: Boolean = false
 
-    @Switch(
-        title = "Storage Colors",
-        description = "Colors inventory, ender chest, total, and separators. Off = everything uses the Text Color from the designer.",
-        category = "General", subcategory = "Colors"
-    )
-    var storageColors: Boolean = true
-
     @Color(title = "Inventory Color", category = "General", subcategory = "Colors")
     var inventoryColor: PolyColor = PolyColor(0xFFE8D9C2.toInt())
 
@@ -301,21 +294,6 @@ class ResourceIconHud : Hud("mint_resource_hud.json", "Resource Tracker", Hud.Ca
         val hasInv = inv > 0
         val hasEc = ec > 0
         val hasTc = tc > 0
-
-        if (!storageColors) {
-            val sb = StringBuilder()
-            if (hasInv) sb.append(invS)
-            if (hasEc) {
-                if (hasInv) sb.append(add)
-                sb.append(ecS)
-            }
-            if (hasTc) {
-                if (hasInv || hasEc) sb.append(add)
-                sb.append(tcS)
-            }
-            sb.append(eq).append(totalS)
-            return listOf(Seg(sb.toString(), null))
-        }
 
         val invC = snap(inventoryColor)
         val ecC = snap(enderChestColor)
