@@ -23,6 +23,13 @@ If you run into issues or have suggestions, feel free to open an issue on [GitHu
   <sub><em>Horizontal layout</em></sub>
 </p>
 
+<!-- i will add waypoint image later:
+<p align="center">
+  <img src="IMAGE_URL" width="600"><br>
+  <sub><em>Chest waypoints</em></sub>
+</p>
+-->
+
 
 ## Features
 
@@ -30,6 +37,8 @@ If you run into issues or have suggestions, feel free to open an issue on [GitHu
 - Tracks Iron, Gold, Diamonds, and Emeralds
 - Shows inventory, Ender Chest, and total amounts in different colours.
 - Supports punch-to-deposit and manual deposits
+- Waypoints above chest/enderchest showing resources
+- Hypixel team chest sync through party chat with others who have the mod.
 - Config through OneConfig
 - Fully client-side and safe for Hypixel
 - Should automatically enable on most other bedwars servers.
