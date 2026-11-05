@@ -283,7 +283,7 @@ public final class Sparkle {
                     Look look = NAMES.get(m.group(1).toLowerCase());
                     // Check the whole line so a prefix split across several runs is still seen
                     String before = flat.substring(0, Math.min(flat.length(), offset[0] + m.start()));
-                    if (before.replaceAll("\u00A7.", "").endsWith(look.prefix())) continue;
+                    if (endsWithTitle(before, look.prefix())) continue;
                     if (m.start() > last) {
                         out.append(Component.literal(text.substring(last, m.start())).setStyle(style));
                     }
@@ -303,6 +303,16 @@ public final class Sparkle {
         } catch (Throwable t) {
             return message;
         }
+    }
+
+    /**
+     * True when the text before a name already ends with the title, so another mod (or an earlier pass)
+     * has added it. Colour codes, spacing and capital letters are ignored when comparing.
+     */
+    private static boolean endsWithTitle(String before, String prefix) {
+        String b = before.replaceAll("\u00A7.", "").replace('\u00A0', ' ').replaceAll("\\s+", " ").trim().toLowerCase();
+        String p = prefix.replace('\u00A0', ' ').replaceAll("\\s+", " ").trim().toLowerCase();
+        return b.endsWith(p);
     }
 
     private static int blend(int base, int shine, float amount) {
