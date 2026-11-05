@@ -75,15 +75,23 @@ public final class WaypointRenderer {
         int width = mc.getWindow().getGuiScaledWidth();
         int height = mc.getWindow().getGuiScaledHeight();
 
+        int[] inventory = {ResourceTracker.ironInv, ResourceTracker.goldInv, ResourceTracker.diaInv, ResourceTracker.emeInv};
         List<WaypointLabel.Part> team = null;
         List<WaypointLabel.Part> ender = null;
         if (cfg.teamChestWaypoint) {
-            team = WaypointLabel.parts(ResourceTracker.teamChestIron, ResourceTracker.teamChestGold,
-                    ResourceTracker.teamChestDiamond, ResourceTracker.teamChestEmerald, true);
+            team = WaypointLabel.parts(
+                    new int[]{ResourceTracker.teamChestIron, ResourceTracker.teamChestGold,
+                            ResourceTracker.teamChestDiamond, ResourceTracker.teamChestEmerald},
+                    inventory,
+                    new boolean[]{cfg.teamWaypointIron, cfg.teamWaypointGold, cfg.teamWaypointDiamond, cfg.teamWaypointEmerald},
+                    cfg.teamChestWaypointAmount);
         }
         if (cfg.enderChestWaypoint) {
-            ender = WaypointLabel.parts(ResourceTracker.ironEc, ResourceTracker.goldEc,
-                    ResourceTracker.diaEc, ResourceTracker.emeEc, false);
+            ender = WaypointLabel.parts(
+                    new int[]{ResourceTracker.ironEc, ResourceTracker.goldEc, ResourceTracker.diaEc, ResourceTracker.emeEc},
+                    inventory,
+                    new boolean[]{cfg.enderWaypointIron, cfg.enderWaypointGold, cfg.enderWaypointDiamond, cfg.enderWaypointEmerald},
+                    cfg.enderChestWaypointAmount);
         }
 
         Font font = mc.font;
@@ -98,26 +106,26 @@ public final class WaypointRenderer {
             // Just above the top of the chest, in the middle
             double[] p = Projection.project(eye.x, eye.y, eye.z, yaw, pitch, fov, width, height,
                     t.pos.getX() + 0.5, t.pos.getY() + 1.3, t.pos.getZ() + 0.5);
-            if (p == null || p[2] > Projection.MAX_DISTANCE) continue;
+            if (p == null || p[2] > cfg.waypointMaxDistance) continue;
             if (p[0] < -60 || p[0] > width + 60 || p[1] < -30 || p[1] > height + 30) continue;
 
             Component text = labelText(t.parts, t.countRgb);
-            float scale = Projection.scaleFor(p[2]);
+            float scale = Projection.scaleFor(p[2], cfg.waypointShrink) * cfg.waypointScale;
             int textWidth = font.width(text);
 
             g.pose().pushMatrix();
             g.pose().translate((float) p[0], (float) p[1]);
             g.pose().scale(scale, scale);
             //? if >= 26.2 {
-            g.text(font, text, -textWidth / 2, -9, 0xFFFFFFFF, true);
+            g.text(font, text, -textWidth / 2, -9, 0xFFFFFFFF, cfg.waypointShadow);
             //?} else {
-            /*g.drawString(font, text, -textWidth / 2, -9, 0xFFFFFFFF, true);
+            /*g.drawString(font, text, -textWidth / 2, -9, 0xFFFFFFFF, cfg.waypointShadow);
             *///?}
             g.pose().popMatrix();
         }
     }
 
-    /** The count in the chest's colour, followed by a one letter tag in the resource's colour. */
+    /** The count in the chest's colour followed by a one letter tag in the resource's colour, or just the count in the resource's colour. */
     private static Component labelText(List<WaypointLabel.Part> parts, int countRgb) {
         MintConfig cfg = MintConfig.INSTANCE;
         int[] resourceRgb = {
@@ -131,8 +139,12 @@ public final class WaypointRenderer {
         for (int i = 0; i < parts.size(); i++) {
             WaypointLabel.Part part = parts.get(i);
             if (i > 0) line.append(Component.literal(" "));
-            line.append(Component.literal(part.count).withColor(countRgb));
-            line.append(Component.literal(String.valueOf(part.letter)).withColor(resourceRgb[part.resource]));
+            if (cfg.waypointLetters) {
+                line.append(Component.literal(part.count).withColor(countRgb));
+                line.append(Component.literal(String.valueOf(part.letter)).withColor(resourceRgb[part.resource]));
+            } else {
+                line.append(Component.literal(part.count).withColor(resourceRgb[part.resource]));
+            }
         }
         return line;
     }
