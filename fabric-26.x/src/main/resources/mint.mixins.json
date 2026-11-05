@@ -9,6 +9,7 @@
     "ChatMixin",
     "NameTagMixin",
     "SkyHanniTabLineMixin",
-    "SkyHanniTabRenderMixin"
+    "SkyHanniTabRenderMixin",
+    "SettingsClickMixin"
   ]
 }
