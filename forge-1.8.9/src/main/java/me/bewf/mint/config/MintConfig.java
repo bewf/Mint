@@ -135,7 +135,7 @@ public class MintConfig extends Config {
 
     @Checkbox(
             name = "Share Team Chest In Party Chat",
-            description = "Send a message in party chat when you deposit or take things out of the team chest. This will automatically update the HUD for other people with this mod. Only sent while you are in a party.",
+            description = "Use at your own risk. Send a message in party chat when you deposit or take things out of the team chest. This will automatically update the HUD for other people with this mod. Only sent while you are in a party.",
             category = "Team Chest",
             subcategory = "Party Sync"
     )
@@ -156,6 +156,70 @@ public class MintConfig extends Config {
             subcategory = "Party Sync"
     )
     public boolean hideSyncMessages = false;
+
+    @Text(
+            name = "Server 1 Address",
+            description = "The server's address, like hypixel.net. Its subdomains count too. Hypixel is filled in as an example.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer1Address = "hypixel.net";
+
+    @Text(
+            name = "Server 1 Party Command",
+            description = "The command that sends a message to party chat on that server, like /pc.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer1Command = "/pc";
+
+    @Text(
+            name = "Server 2 Address",
+            description = "Another server to send team chest updates on. Leave it empty to skip it.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer2Address = "";
+
+    @Text(
+            name = "Server 2 Party Command",
+            description = "The command that sends a message to party chat on that server.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer2Command = "";
+
+    @Text(
+            name = "Server 3 Address",
+            description = "Another server to send team chest updates on. Leave it empty to skip it.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer3Address = "";
+
+    @Text(
+            name = "Server 3 Party Command",
+            description = "The command that sends a message to party chat on that server.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer3Command = "";
+
+    @Text(
+            name = "Server 4 Address",
+            description = "Another server to send team chest updates on. Leave it empty to skip it.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer4Address = "";
+
+    @Text(
+            name = "Server 4 Party Command",
+            description = "The command that sends a message to party chat on that server.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer4Command = "";
 
     @Color(name = "Deposit Color", category = "Team Chest", subcategory = "Party Sync Colors")
     public OneColor syncPlusColor = new OneColor(85, 255, 85);
