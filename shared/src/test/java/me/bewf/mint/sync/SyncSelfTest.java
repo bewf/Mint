@@ -33,6 +33,7 @@ public final class SyncSelfTest {
         label();
         sidebar();
         recent();
+        servers();
         System.out.println(checks + " checks, " + failures + " failed");
         if (failures > 0) System.exit(1);
     }
@@ -83,6 +84,11 @@ public final class SyncSelfTest {
         check(l != null && l.sender.equals("a_b1") && l.body.equals("x: y"), "colon in text");
         check(TeamChestMessage.party("Guild > bewf: hi") == null, "guild chat is not party chat");
         check(TeamChestMessage.party("[MVP+] bewf: Party > fake: hi") == null, "spoofed prefix inside normal chat");
+        l = TeamChestMessage.party("[Party] bewf: [Mint | Team Chest: +1 iron]");
+        check(l != null && l.sender.equals("bewf") && l.body.startsWith("[Mint"), "bracket party prefix of another server");
+        l = TeamChestMessage.party("Party | [Rank] bewf: hi");
+        check(l != null && l.sender.equals("bewf"), "bar party prefix of another server");
+        check(TeamChestMessage.party("[MVP+] Party: [Mint | Team Chest: +1 iron]") == null, "a player called Party in normal chat");
     }
 
     private static void buffer() {
@@ -275,6 +281,21 @@ public final class SyncSelfTest {
         check(!SidebarTeams.hasOwnTeamLine(Arrays.asList("R Red: \u2713", "G Green: \u2713", "Players: 7/8")), "no own team line");
         check(!SidebarTeams.hasOwnTeamLine(Arrays.asList("Players: 7/8", "Waiting...", "Map: Yoyo YOU")), "lobby lines are not a team");
         check(!SidebarTeams.hasOwnTeamLine(null), "null lines");
+    }
+
+    private static void servers() {
+        String[] addr = {"hypixel.net", "play.example.com:25565", "", ""};
+        String[] cmd = {"/pc", "party chat", "/x", ""};
+        eq(PartyServers.commandFor("mc.hypixel.net", addr, cmd), "pc", "subdomain of a listed server");
+        eq(PartyServers.commandFor("HYPIXEL.NET.", addr, cmd), "pc", "case and trailing dot are ignored");
+        eq(PartyServers.commandFor("play.example.com", addr, cmd), "party chat", "port in the setting is ignored");
+        check(PartyServers.commandFor("example.com", addr, cmd) == null, "a parent of a listed server is not listed");
+        check(PartyServers.commandFor("nothypixel.net", addr, cmd) == null, "a name that only ends the same is not listed");
+        check(PartyServers.commandFor("", addr, cmd) == null, "singleplayer has no address");
+        check(PartyServers.commandFor(null, addr, cmd) == null, "no address");
+        check(PartyServers.commandFor("hypixel.net", new String[]{"hypixel.net"}, new String[]{"  "}) == null, "an empty command turns it off");
+        eq(PartyServers.command("//pc "), "pc", "slashes and spaces are trimmed");
+        check(PartyServers.command("pc\nop") == null, "line breaks are refused");
     }
 
     private static void recent() {

@@ -31,9 +31,9 @@ public final class TeamChestMessage {
             "^\\[Mint \\| Team Chest: (" + ITEM + "(?:, " + ITEM + "){0,3})(?: #(\\d{1,2}))?\\]$");
     private static final Pattern ITEM_PATTERN = Pattern.compile("([+-])(\\d{1,4}) (iron|gold|dia|em)");
 
-    // "Party > [MVP+] name: text" or "Party > name: text", colour codes already removed
+    // "Party > [MVP+] name: text" on Hypixel, "[Party] name: text" and similar elsewhere, colour codes already removed
     private static final Pattern PARTY_LINE = Pattern.compile(
-            "^Party > (?:\\[[^\\]]+\\] )?([A-Za-z0-9_]{1,16}): (.*)$");
+            "^\\[?Party\\]?(?: ?[>|:\u00BB-])? ?(?:\\[[^\\]]+\\] ?)*([A-Za-z0-9_]{1,16}): (.*)$", Pattern.CASE_INSENSITIVE);
 
     public static final class Parsed {
         public final Delta delta;
