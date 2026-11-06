@@ -30,6 +30,17 @@ public class BedwarsDetector {
         return isBedwarsText(title, lines);
     }
 
+    /** The address of the server the player is on, lower case, or empty. */
+    public static String serverAddress() {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            ServerListEntry server = mc == null ? null : mc.getCurrentServerEntry();
+            return server == null || server.ip == null ? "" : server.ip.toLowerCase();
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
     /** True while connected to Hypixel. The team chest features only run there for now. */
     public static boolean onHypixel() {
         try {

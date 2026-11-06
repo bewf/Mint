@@ -11,13 +11,14 @@ import org.polyfrost.oneconfig.api.config.v1.annotations.Checkbox;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Color;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Include;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Switch;
+import org.polyfrost.oneconfig.api.config.v1.annotations.Text;
 
 public class MintConfig extends Config {
     public static MintConfig INSTANCE;
 
     @Switch(
             title = "Share Team Chest In Party Chat",
-            description = "Send a message in party chat when you deposit or take things out of the team chest. This will automatically update the HUD for other people with this mod. Only sent while you are in a party.",
+            description = "Use at your own risk. Send a message in party chat when you deposit or take things out of the team chest. This will automatically update the HUD for other people with this mod. Only sent while you are in a party.",
             category = "Team Chest",
             subcategory = "Party Sync"
     )
@@ -38,6 +39,70 @@ public class MintConfig extends Config {
             subcategory = "Party Sync"
     )
     public boolean hideSyncMessages = false;
+
+    @Text(
+            title = "Server 1 Address",
+            description = "The server's address, like hypixel.net. Its subdomains count too. Hypixel is filled in as an example.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer1Address = "hypixel.net";
+
+    @Text(
+            title = "Server 1 Party Command",
+            description = "The command that sends a message to party chat on that server, like /pc.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer1Command = "/pc";
+
+    @Text(
+            title = "Server 2 Address",
+            description = "Another server to send team chest updates on. Leave it empty to skip it.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer2Address = "";
+
+    @Text(
+            title = "Server 2 Party Command",
+            description = "The command that sends a message to party chat on that server.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer2Command = "";
+
+    @Text(
+            title = "Server 3 Address",
+            description = "Another server to send team chest updates on. Leave it empty to skip it.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer3Address = "";
+
+    @Text(
+            title = "Server 3 Party Command",
+            description = "The command that sends a message to party chat on that server.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer3Command = "";
+
+    @Text(
+            title = "Server 4 Address",
+            description = "Another server to send team chest updates on. Leave it empty to skip it.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer4Address = "";
+
+    @Text(
+            title = "Server 4 Party Command",
+            description = "The command that sends a message to party chat on that server.",
+            category = "Team Chest",
+            subcategory = "Party Servers"
+    )
+    public String partyServer4Command = "";
 
     @Color(title = "Deposit Color", category = "Team Chest", subcategory = "Party Sync Colors")
     public PolyColor syncPlusColor = new PolyColor(0xFF55FF55);
