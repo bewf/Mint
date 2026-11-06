@@ -38,11 +38,14 @@ If you run into issues or have suggestions, feel free to open an issue on [GitHu
 - Shows inventory, Ender Chest, and total amounts in different colours.
 - Supports punch-to-deposit and manual deposits
 - Waypoints above chest/enderchest showing resources
-- Hypixel team chest sync through party chat with others who have the mod.
 - Config through OneConfig
 - Fully client-side and safe for Hypixel
 - Should automatically enable on most other bedwars servers.
   - If it doesn't, turn on "Always Show HUD" in the Debug menu.
+- Team chest sync through party chat with others who have the mod. Hypixel works by default
+  - You can add other servers under Team Chest in the settings.
+
+> **Use party sync at your own risk.** Party sync works by sending a message through party chat. I don't expect it to cause problems, but I can't promise every/any public server will allow it. You can turn it off in the settings.
 
 
 ## OneConfig Integration
