@@ -117,7 +117,7 @@ public final class TeamChestSync {
         RECENT.remember(plain, now);
         SENT.remember(body, now);
 
-        if (McCompat.sendChat(mc.player, "/" + command + " " + body)) requestTip();
+        if (McCompat.sendChat("/" + command + " " + body)) requestTip();
     }
 
     private static void onIncoming(ChatEvent.Receive event) {
@@ -144,12 +144,12 @@ public final class TeamChestSync {
         if (mc.player == null || mc.world == null) return;
 
         // Our own message comes back from the server, and we already know about it
-        if (sender.equalsIgnoreCase(McCompat.playerName(mc.player))) return;
+        if (sender.equalsIgnoreCase(McCompat.playerName())) return;
         if (!ResourceTracker.isActive() && !MintConfig.INSTANCE.showOutsideBedwars) return;
 
         // A party can hold players from different teams, and their chests are not ours
-        Object theirs = McCompat.teamOf(mc.world, sender);
-        Object mine = McCompat.teamOf(mc.world, McCompat.playerName(mc.player));
+        Object theirs = McCompat.teamOf(sender);
+        Object mine = McCompat.teamOf(McCompat.playerName());
         if (theirs != null && mine != null && theirs != mine) return;
 
         if (update.seq >= 0) {

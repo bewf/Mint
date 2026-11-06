@@ -307,7 +307,7 @@ public class ResourceTracker {
             if (spawnCaptureCountdown <= 0) spawnCaptureCountdown = 20;
         }
 
-        double[] pos = McCompat.playerPos(mc.player);
+        double[] pos = McCompat.playerPos();
         if (pos == null) return;
         BlockPos here = new BlockPos((int) Math.floor(pos[0]), (int) Math.floor(pos[1]), (int) Math.floor(pos[2]));
 
