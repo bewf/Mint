@@ -3,6 +3,7 @@ package me.bewf.mint.util;
 import me.bewf.mint.config.MintConfig;
 import me.bewf.mint.sync.ChestBuffer;
 import me.bewf.mint.sync.Delta;
+import me.bewf.mint.sync.PartyServers;
 import me.bewf.mint.sync.PartyState;
 import me.bewf.mint.sync.RecentMessages;
 import me.bewf.mint.sync.TeamChestMessage;
@@ -75,9 +76,17 @@ public final class TeamChestSync {
         return true;
     }
 
+    /** The party chat command for the server the player is on, or null when sync is not set up for it. */
+    private static String partyCommand() {
+        MintConfig c = MintConfig.INSTANCE;
+        return PartyServers.commandFor(BedwarsDetector.serverAddress(),
+                new String[]{c.partyServer1Address, c.partyServer2Address, c.partyServer3Address, c.partyServer4Address},
+                new String[]{c.partyServer1Command, c.partyServer2Command, c.partyServer3Command, c.partyServer4Command});
+    }
+
     /** The player changed the team chest. Deposits are positive, withdrawals negative. */
     public static void record(Delta change) {
-        if (!MintConfig.INSTANCE.partySync || !party.canSend() || !BedwarsDetector.onHypixel()) return;
+        if (!MintConfig.INSTANCE.partySync || !party.canSend() || partyCommand() == null) return;
         BUFFER.add(change, System.currentTimeMillis());
     }
 
@@ -108,6 +117,8 @@ public final class TeamChestSync {
     private static void send(Delta d) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
+        String command = partyCommand();
+        if (command == null) return;
 
         long now = System.currentTimeMillis();
         String plain = TeamChestMessage.format(d, -1);
@@ -122,7 +133,7 @@ public final class TeamChestSync {
         SENT.remember(body, now);
 
         Object connection = mc.getConnection();
-        boolean sent = connection != null && ReflectUtil.tryCall(connection, "sendCommand", "pc " + body);
+        boolean sent = connection != null && ReflectUtil.tryCall(connection, "sendCommand", command + " " + body);
         if (!sent) {
             if (!sendFailureLogged) {
                 sendFailureLogged = true;
@@ -179,7 +190,7 @@ public final class TeamChestSync {
     }
 
     private static void applyFrom(String sender, TeamChestMessage.Parsed update) {
-        if (!MintConfig.INSTANCE.readPartySync || !BedwarsDetector.onHypixel()) return;
+        if (!MintConfig.INSTANCE.readPartySync || partyCommand() == null) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
