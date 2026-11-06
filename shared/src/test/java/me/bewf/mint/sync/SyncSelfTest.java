@@ -285,5 +285,12 @@ public final class SyncSelfTest {
         check(!r.consumeIfOurs("[Mint | Team Chest: +10 iron #3]", 2500), "an echo is only dropped once");
         r.remember("[Mint | Team Chest: -1 dia #5]", 3000);
         check(!r.consumeIfOurs("[Mint | Team Chest: -1 dia #5]", 20000), "old messages are forgotten");
+
+        RecentMessages seen = new RecentMessages(30000);
+        seen.remember("[Mint | Team Chest: +10 iron]", 1000);
+        check(seen.has("[Mint | Team Chest: +10 iron]", 5000), "a recent message is found");
+        check(seen.has("[Mint | Team Chest: +10 iron]", 6000), "looking does not use it up");
+        check(!seen.has("[Mint | Team Chest: +9 iron]", 5000), "a different message is not found");
+        check(!seen.has("[Mint | Team Chest: +10 iron]", 40000), "an old message is not found");
     }
 }

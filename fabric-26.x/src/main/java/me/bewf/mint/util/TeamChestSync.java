@@ -27,7 +27,7 @@ import java.util.Optional;
  * Shares team chest changes with the party and reads the ones teammates share.
  * <p>
  * Changes are collected in a small buffer and sent as one party message, for example
- * {@code [Mint | Team Chest: +10 iron, -4 dia #7]}. Nothing is sent outside a party, and Hypixel's
+ * {@code [Mint | Team Chest: +10 iron, -4 dia]}. A repeat of a message just sent gets a counter, like {@code #7}. Nothing is sent outside a party, and Hypixel's
  * own "not in a party" reply stops further tries. The message format and all the timing rules live in
  * the shared {@code me.bewf.mint.sync} package.
  */
@@ -49,6 +49,9 @@ public final class TeamChestSync {
 
     // Party messages we sent ourselves, so the echo from the server is not counted a second time
     private static final RecentMessages SENT = new RecentMessages(15000L);
+
+    // The plain text of what we sent lately, to spot a message that repeats
+    private static final RecentMessages RECENT = new RecentMessages(30000L);
 
     // The last counter seen from each sender, so a repeated message is not applied twice
     private static final Map<String, Integer> LAST_SEQ = new HashMap<>();
@@ -99,16 +102,24 @@ public final class TeamChestSync {
         BUFFER.reset();
         LAST_SEQ.clear();
         SENT.clear();
+        RECENT.clear();
     }
 
     private static void send(Delta d) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        String body = TeamChestMessage.format(d, nextSeq);
-        if (body == null) return;
-        nextSeq = (nextSeq + 1) % 100;
-        SENT.remember(body, System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        String plain = TeamChestMessage.format(d, -1);
+        if (plain == null) return;
+        // Hypixel drops a message that repeats one just sent, so only a repeat gets a counter
+        String body = plain;
+        if (RECENT.has(plain, now)) {
+            body = TeamChestMessage.format(d, nextSeq);
+            nextSeq = (nextSeq + 1) % 100;
+        }
+        RECENT.remember(plain, now);
+        SENT.remember(body, now);
 
         Object connection = mc.getConnection();
         boolean sent = connection != null && ReflectUtil.tryCall(connection, "sendCommand", "pc " + body);

@@ -1,19 +1,20 @@
 @file:Suppress("UnstableApiUsage", "Property_Name")
 
 import dev.deftu.gradle.utils.GameSide
-import org.gradle.jvm.toolchain.JavaLanguageVersion
-import org.gradle.jvm.tasks.Jar
+        import org.gradle.jvm.toolchain.JavaLanguageVersion
+        import org.gradle.jvm.tasks.Jar
 
-plugins {
-    java
-    val dgtVersion = "2.35.0"
-    id("dev.deftu.gradle.tools") version(dgtVersion)
-    id("dev.deftu.gradle.tools.resources") version(dgtVersion)
-    id("dev.deftu.gradle.tools.bloom") version(dgtVersion)
-    id("dev.deftu.gradle.tools.shadow") version(dgtVersion)
-    id("dev.deftu.gradle.tools.minecraft.loom") version(dgtVersion)
-    id("dev.deftu.gradle.tools.minecraft.releases") version(dgtVersion)
-}
+        plugins {
+            java
+
+            val dgtVersion = "2.35.0"
+            id("dev.deftu.gradle.tools") version(dgtVersion)
+            id("dev.deftu.gradle.tools.resources") version(dgtVersion)
+            id("dev.deftu.gradle.tools.bloom") version(dgtVersion)
+            id("dev.deftu.gradle.tools.shadow") version(dgtVersion)
+            id("dev.deftu.gradle.tools.minecraft.loom") version(dgtVersion)
+            id("dev.deftu.gradle.tools.minecraft.releases") version(dgtVersion)
+        }
 
 val modName = providers.gradleProperty("mod.name").get()
 val modId = providers.gradleProperty("mod.id").get()
@@ -24,26 +25,9 @@ group = modGroup
 version = modVersion
 
 toolkitLoomHelper {
-    useOneConfig {
-        version = "1.0.0-alpha.183"
-        loaderVersion = "1.1.0-alpha.46"
-
-        usePolyMixin = true
-        polyMixinVersion = "0.8.4+build.2"
-
-        // I embed stage0 in my jar, so I keep this off.
-        applyLoaderTweaker = false
-
-        for (module in arrayOf("commands", "config", "config-impl", "events", "hud", "internal", "ui", "utils")) {
-            +module
-        }
-    }
-
     useDevAuth("1.2.1")
-    useMixinExtras("0.4.1")
 
     disableRunConfigs(GameSide.SERVER)
-
     useMixinRefMap(modData.id)
 
     if (mcData.isForge) {
@@ -57,17 +41,14 @@ repositories {
 }
 
 dependencies {
-    implementation("cc.polyfrost:oneconfig-1.8.9-forge:0.2.2-alpha+")
-    shade("cc.polyfrost:oneconfig-1.8.9-forge:0.2.2-alpha+")
-    include("cc.polyfrost:oneconfig-1.8.9-forge:0.2.2-alpha+")
+    // OneConfig V0
+    compileOnly("org.spongepowered:mixin:0.7.11-SNAPSHOT")
+    annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
 
-    implementation("cc.polyfrost:oneconfig-wrapper-launchwrapper:1.0.0-beta17")
-    shade("cc.polyfrost:oneconfig-wrapper-launchwrapper:1.0.0-beta17")
-    include("cc.polyfrost:oneconfig-wrapper-launchwrapper:1.0.0-beta17")
+    compileOnly("cc.polyfrost:oneconfig-1.8.9-forge:0.2.2-alpha+")
 
-    implementation("org.polyfrost.oneconfig:stage0:1.1.0-alpha.46")
-    shade("org.polyfrost.oneconfig:stage0:1.1.0-alpha.46")
-    include("org.polyfrost.oneconfig:stage0:1.1.0-alpha.46")
+    implementation("cc.polyfrost:oneconfig-wrapper-launchwrapper:1.0.0-beta+")
+    include("cc.polyfrost:oneconfig-wrapper-launchwrapper:1.0.0-beta+")
 
     runtimeOnly("me.djtheredstoner:DevAuth-forge-legacy:1.2.1")
 }
@@ -89,6 +70,7 @@ tasks.withType<JavaExec>().configureEach {
 }
 
 tasks.withType<Jar>().configureEach {
+    manifest.attributes["MixinConfigs"] = "mixins.mint.json"
     manifest.attributes["ModSide"] = "CLIENT"
     manifest.attributes["TweakOrder"] = 0
     manifest.attributes["ForceLoadAsMod"] = true
@@ -99,7 +81,7 @@ tasks.withType<Jar>().configureEach {
 configurations.all {
     exclude(group = "org.jetbrains.kotlin", module = "kotlin-reflect")
 
-    // Forge 1.8.9 ASM dies on multi-release jars (module-info.class under META-INF/versions/*)
+    // Forge 1.8.9 ASM cannot handle multi-release jars.
     exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-jdk8")
     exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
     exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
@@ -107,7 +89,10 @@ configurations.all {
 
 tasks.named<JavaExec>("runClient") {
     args("--tweakClass", "cc.polyfrost.oneconfig.loader.stage0.LaunchWrapperTweaker")
-    jvmArgs("-Ddevauth.enabled=true", "-Ddevauth.account=alt")
+    jvmArgs(
+        "-Ddevauth.enabled=true",
+        "-Ddevauth.account=alt"
+    )
 }
 
 /* Version sync: gradle.properties -> generated Mint.java + mcmod.info */
@@ -133,7 +118,7 @@ val mainJavaWithoutMint = fileTree("src/main/java") {
     exclude("me/bewf/mint/Mint.java")
 }
 
-// Code shared by every Mint module (team chest sync, chest picking, label maths). Plain Java 8.
+// Shared code used by every Mint module.
 val sharedJava = fileTree("../shared/src/main/java") {
     include("**/*.java")
 }

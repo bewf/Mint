@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 
 /**
  * The party chat line Mint uses to share team chest changes, for example
- * {@code [Mint | Team Chest: +10 iron, -4 dia #7]}.
+ * {@code [Mint | Team Chest: +10 iron, -4 dia]}.
  * <p>
  * The sender is not part of the body. Hypixel already prefixes party chat with the sender's name,
  * so the receiver reads it from there, which also stops anyone faking another player's update.

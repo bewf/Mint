@@ -32,6 +32,15 @@ public final class RecentMessages {
         sent.add(new Entry(body, now));
     }
 
+    /** True if this exact text was remembered recently. Nothing is used up. */
+    public boolean has(String body, long now) {
+        prune(now);
+        for (Entry e : sent) {
+            if (e.body.equals(body)) return true;
+        }
+        return false;
+    }
+
     /** True once for each remembered message, so the echo is dropped and later identical text from someone else is not. */
     public boolean consumeIfOurs(String body, long now) {
         prune(now);
