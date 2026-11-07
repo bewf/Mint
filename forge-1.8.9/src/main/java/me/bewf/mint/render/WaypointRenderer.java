@@ -7,6 +7,7 @@ import me.bewf.mint.util.BedwarsDetector;
 import me.bewf.mint.util.ResourceTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.BlockPos;
@@ -95,8 +96,11 @@ public class WaypointRenderer {
                 rgb(cfg.diamondColor, 0x55FFFF), rgb(cfg.emeraldColor, 0x55FF55)
         };
 
-        // The label keeps one on-screen size up close and shrinks with distance (see Projection.scaleFor)
-        float worldScale = 0.0105f * (float) Math.max(dist, 1.0) * Projection.scaleFor(dist, cfg.waypointShrink) * cfg.waypointScale;
+        // The label is as big as normal game text up close and shrinks with distance (see Projection.scaleFor).
+        // A text unit is one GUI pixel on screen, so the world size is that many pixels at this distance.
+        double focal = (mc.displayHeight / 2.0) / Math.tan(Math.toRadians(mc.gameSettings.fovSetting) / 2.0);
+        float worldScale = (float) (Math.max(dist, 1.0) * new ScaledResolution(mc).getScaleFactor() / focal)
+                * Projection.scaleFor(dist, cfg.waypointShrink) * cfg.waypointScale;
 
         FontRenderer fr = mc.fontRendererObj;
         int total = 0;
