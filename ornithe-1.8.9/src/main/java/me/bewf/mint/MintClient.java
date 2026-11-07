@@ -1,6 +1,7 @@
 package me.bewf.mint;
 
 import me.bewf.mint.config.MintConfig;
+import me.bewf.mint.extras.Sparkle;
 import me.bewf.mint.hud.ResourceIconHud;
 import me.bewf.mint.util.ResourceTracker;
 import me.bewf.mint.util.TeamChestSync;
@@ -18,6 +19,7 @@ public class MintClient implements ClientModInitializer {
         ResourceTracker.register();
         TeamChestSync.register();
         UpdateCheckListener.register();
+        Sparkle.register();
 
         System.out.println("Mint loaded - bewf on top");
     }

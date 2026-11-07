@@ -7,6 +7,11 @@ import me.bewf.mint.sync.PartyServers;
 import me.bewf.mint.sync.PartyState;
 import me.bewf.mint.sync.RecentMessages;
 import me.bewf.mint.sync.TeamChestMessage;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.TextReplacementConfig;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Formatting;
@@ -18,6 +23,7 @@ import org.polyfrost.oneconfig.api.event.v1.EventManager;
 import org.polyfrost.oneconfig.api.event.v1.events.ChatEvent;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -132,10 +138,44 @@ public final class TeamChestSync {
 
             if (!SENT.consumeIfOurs(line.body, System.currentTimeMillis())) applyFrom(line.sender, update);
             if (MintConfig.INSTANCE.readPartySync) requestTip();
-            // Shown messages keep the server's formatting. Recolouring them needs a text API this build avoids.
-            if (MintConfig.INSTANCE.hideSyncMessages) event.cancelled = true;
+            if (MintConfig.INSTANCE.hideSyncMessages) {
+                event.cancelled = true;
+            } else {
+                recolor(event, line.body);
+            }
         } catch (Throwable ignored) {
         }
+    }
+
+    private static TeamChestMessage.Palette palette() {
+        MintConfig c = MintConfig.INSTANCE;
+        TeamChestMessage.Palette p = new TeamChestMessage.Palette();
+        p.plus = c.syncPlusColor.getRawArgb() & 0xFFFFFF;
+        p.minus = c.syncMinusColor.getRawArgb() & 0xFFFFFF;
+        p.resource[Delta.IRON] = c.ironColor.getRawArgb() & 0xFFFFFF;
+        p.resource[Delta.GOLD] = c.goldColor.getRawArgb() & 0xFFFFFF;
+        p.resource[Delta.DIAMOND] = c.diamondColor.getRawArgb() & 0xFFFFFF;
+        p.resource[Delta.EMERALD] = c.emeraldColor.getRawArgb() & 0xFFFFFF;
+        return p;
+    }
+
+    /**
+     * Colours a shown update: green deposits, red withdrawals, each resource in its own colour. 1.8.9 only has
+     * sixteen chat colours, so each one is the closest of those. A message that does not match is left alone.
+     */
+    private static void recolor(ChatEvent.Receive event, String body) {
+        List<TeamChestMessage.Segment> segments = TeamChestMessage.segments(body, palette());
+        if (segments == null) return;
+
+        TextComponent.Builder colored = Component.text();
+        for (TeamChestMessage.Segment segment : segments) {
+            colored.append(Component.text(segment.text, NamedTextColor.nearestTo(TextColor.color(segment.rgb))));
+        }
+        event.setMessage(event.getMessage().replaceText(TextReplacementConfig.builder()
+                .matchLiteral(body)
+                .once()
+                .replacement(colored.build())
+                .build()));
     }
 
     private static void applyFrom(String sender, TeamChestMessage.Parsed update) {
