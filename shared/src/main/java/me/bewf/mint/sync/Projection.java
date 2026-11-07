@@ -24,6 +24,19 @@ public final class Projection {
                                    double yawDegrees, double pitchDegrees, double fovDegrees,
                                    double width, double height,
                                    double wx, double wy, double wz) {
+        return project(ex, ey, ez, yawDegrees, pitchDegrees, fovDegrees, width, height, wx, wy, wz, null);
+    }
+
+    /**
+     * Same as the version above, for a camera that is also shaken by walking (view bobbing).
+     *
+     * @param bob {moveRight, moveUp, rollDegrees, pitchDegrees} as the game applies them to the whole
+     *            view after the camera is aimed, or null for none. The move is in blocks.
+     */
+    public static double[] project(double ex, double ey, double ez,
+                                   double yawDegrees, double pitchDegrees, double fovDegrees,
+                                   double width, double height,
+                                   double wx, double wy, double wz, double[] bob) {
         double yaw = Math.toRadians(yawDegrees);
         double pitch = Math.toRadians(pitchDegrees);
 
@@ -44,10 +57,24 @@ public final class Projection {
         double dz = wz - ez;
 
         double depth = dx * fx + dy * fy + dz * fz;
-        if (depth <= 0.05) return null;
-
         double right = dx * rx + dz * rz;
         double up = dx * ux + dy * uy + dz * uz;
+
+        if (bob != null) {
+            // The game turns the view about its x axis, then its z axis, then slides it. In view space
+            // x is right, y is up and z points back toward the player, so the depth is minus z.
+            double z = -depth;
+            double a = Math.toRadians(bob[3]);
+            double y1 = up * Math.cos(a) - z * Math.sin(a);
+            double z1 = up * Math.sin(a) + z * Math.cos(a);
+            double b = Math.toRadians(bob[2]);
+            double x2 = right * Math.cos(b) - y1 * Math.sin(b);
+            double y2 = right * Math.sin(b) + y1 * Math.cos(b);
+            right = x2 + bob[0];
+            up = y2 + bob[1];
+            depth = -z1;
+        }
+        if (depth <= 0.05) return null;
 
         double focal = (height / 2.0) / Math.tan(Math.toRadians(fovDegrees) / 2.0);
         double sx = width / 2.0 + right / depth * focal;

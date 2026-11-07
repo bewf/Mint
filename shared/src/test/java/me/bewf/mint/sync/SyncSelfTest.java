@@ -237,6 +237,24 @@ public final class SyncSelfTest {
         p = Projection.project(0, 64, 0, 0, 0, 90, 400, 300, 0, 64 + 10, 10);
         check(p != null && Math.abs(p[1] - 0) < 1e-6, "edge of the vertical field of view");
 
+        // view bobbing: none and zero give the plain result
+        double[] plain = Projection.project(0, 64, 0, 30, 10, 70, 400, 300, -3, 66, 8);
+        double[] none = Projection.project(0, 64, 0, 30, 10, 70, 400, 300, -3, 66, 8, null);
+        double[] zero = Projection.project(0, 64, 0, 30, 10, 70, 400, 300, -3, 66, 8, new double[]{0, 0, 0, 0});
+        check(Math.abs(plain[0] - none[0]) < 1e-9 && Math.abs(plain[1] - none[1]) < 1e-9, "no bob is the plain result");
+        check(Math.abs(plain[0] - zero[0]) < 1e-9 && Math.abs(plain[1] - zero[1]) < 1e-9, "zero bob is the plain result");
+
+        double focal = 150.0 / Math.tan(Math.toRadians(35));
+        p = Projection.project(0, 64, 0, 0, 0, 70, 400, 300, 0, 64, 10, new double[]{0.5, 0, 0, 0});
+        check(p != null && Math.abs(p[0] - (200 + 0.5 / 10 * focal)) < 1e-6, "the view sliding right moves things right");
+        p = Projection.project(0, 64, 0, 0, 0, 70, 400, 300, 0, 64, 10, new double[]{0, -0.2, 0, 0});
+        check(p != null && Math.abs(p[1] - (150 + 0.2 / 10 * focal)) < 1e-6, "the view dipping moves things down");
+        p = Projection.project(0, 64, 0, 0, 0, 70, 400, 300, -1, 64, 10, new double[]{0, 0, 90, 0});
+        check(p != null && Math.abs(p[0] - 200) < 1e-6 && p[1] < 150, "a quarter turn of roll sends a point on the right to the top");
+        p = Projection.project(0, 64, 0, 0, 0, 70, 400, 300, 0, 64, 10, new double[]{0, 0, 0, 5});
+        check(p != null && p[1] < 150, "tilting the view moves a centred point");
+        check(Projection.project(0, 64, 0, 0, 0, 70, 400, 300, 0, 64, 10, new double[]{0, 0, 0, 180}) == null, "turned all the way round is behind");
+
         check(Projection.scaleFor(3) == 1.0f, "full size up close");
         check(Projection.scaleFor(12) == 0.5f, "half size at 12 blocks");
         check(Projection.scaleFor(500) == 0.45f, "never smaller than the floor");
