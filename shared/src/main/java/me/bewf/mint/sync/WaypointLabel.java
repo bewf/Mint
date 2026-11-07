@@ -20,6 +20,11 @@ public final class WaypointLabel {
     /** The label shows the chest plus the inventory. */
     public static final int AMOUNT_TOTAL = 1;
 
+    /** What goes next to each amount: the item, a one letter tag, or nothing. */
+    public static final int MARKER_ICON = 0;
+    public static final int MARKER_LETTER = 1;
+    public static final int MARKER_NONE = 2;
+
     public static final class Part {
         public final String count;
         public final char letter;

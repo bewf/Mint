@@ -18,8 +18,9 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 *///?}
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
@@ -111,24 +112,30 @@ public final class WaypointRenderer {
             if (p == null || p[2] > cfg.waypointMaxDistance) continue;
             if (p[0] < -60 || p[0] > width + 60 || p[1] < -30 || p[1] > height + 30) continue;
 
-            Component text = labelText(t.parts, t.countRgb);
             float scale = Projection.scaleFor(p[2], cfg.waypointShrink) * cfg.waypointScale;
-            int textWidth = font.width(text);
-
-            g.pose().pushMatrix();
-            g.pose().translate((float) p[0], (float) p[1]);
-            g.pose().scale(scale, scale);
-            //? if >= 26.2 {
-            g.text(font, text, -textWidth / 2, -9, 0xFFFFFFFF, cfg.waypointShadow);
-            //?} else {
-            /*g.drawString(font, text, -textWidth / 2, -9, 0xFFFFFFFF, cfg.waypointShadow);
-            *///?}
-            g.pose().popMatrix();
+            drawLabel(g, font, t, (float) p[0], (float) p[1], scale);
         }
     }
 
-    /** The count in the chest's colour followed by a one letter tag in the resource's colour, or just the count in the resource's colour. */
-    private static Component labelText(List<WaypointLabel.Part> parts, int countRgb) {
+    /** Size of an item icon in text pixels. Items are 16 pixels, so they are shrunk to sit beside the text. */
+    private static final int ICON = 10;
+
+    private static ItemStack[] icons = null;
+
+    private static ItemStack icon(int resource) {
+        if (icons == null) {
+            icons = new ItemStack[]{
+                    new ItemStack(Items.IRON_INGOT), new ItemStack(Items.GOLD_INGOT),
+                    new ItemStack(Items.DIAMOND), new ItemStack(Items.EMERALD)};
+        }
+        return icons[resource];
+    }
+
+    //? if >= 26.2 {
+    private static void drawLabel(GuiGraphicsExtractor g, Font font, Target t, float x, float y, float scale) {
+    //?} else {
+    /*private static void drawLabel(GuiGraphics g, Font font, Target t, float x, float y, float scale) {
+    *///?}
         MintConfig cfg = MintConfig.INSTANCE;
         int[] resourceRgb = {
                 cfg.ironColor.getRawArgb() & 0xFFFFFF,
@@ -136,20 +143,71 @@ public final class WaypointRenderer {
                 cfg.diamondColor.getRawArgb() & 0xFFFFFF,
                 cfg.emeraldColor.getRawArgb() & 0xFFFFFF,
         };
+        int marker = cfg.waypointMarker;
+        int gap = font.width(" ");
 
-        MutableComponent line = Component.empty();
-        for (int i = 0; i < parts.size(); i++) {
-            WaypointLabel.Part part = parts.get(i);
-            if (i > 0) line.append(Component.literal(" "));
-            if (cfg.waypointLetters) {
-                line.append(Component.literal(part.count).withColor(countRgb));
-                line.append(Component.literal(String.valueOf(part.letter)).withColor(resourceRgb[part.resource]));
-            } else {
-                line.append(Component.literal(part.count).withColor(resourceRgb[part.resource]));
+        // The amount is in the chest's color when something marks the resource, and in the resource's color when nothing does
+        int n = t.parts.size();
+        Component[] counts = new Component[n];
+        Component[] letters = new Component[n];
+        int total = 0;
+        for (int i = 0; i < n; i++) {
+            WaypointLabel.Part part = t.parts.get(i);
+            int countRgb = marker == WaypointLabel.MARKER_NONE ? resourceRgb[part.resource] : t.countRgb;
+            counts[i] = Component.literal(part.count).withColor(countRgb);
+            total += font.width(counts[i]);
+            if (marker == WaypointLabel.MARKER_ICON) {
+                total += 1 + ICON;
+            } else if (marker == WaypointLabel.MARKER_LETTER) {
+                letters[i] = Component.literal(String.valueOf(part.letter)).withColor(resourceRgb[part.resource]);
+                total += font.width(letters[i]);
+            }
+            if (i > 0) total += gap;
+        }
+
+        g.pose().pushMatrix();
+        g.pose().translate(x, y);
+        g.pose().scale(scale, scale);
+
+        int cursor = -total / 2;
+        for (int i = 0; i < n; i++) {
+            if (i > 0) cursor += gap;
+            drawText(g, font, counts[i], cursor, -9, cfg.waypointShadow);
+            cursor += font.width(counts[i]);
+            if (marker == WaypointLabel.MARKER_ICON) {
+                cursor += 1;
+                g.pose().pushMatrix();
+                g.pose().translate((float) cursor, (float) -ICON);
+                g.pose().scale(ICON / 16f, ICON / 16f);
+                drawItem(g, icon(t.parts.get(i).resource));
+                g.pose().popMatrix();
+                cursor += ICON;
+            } else if (marker == WaypointLabel.MARKER_LETTER) {
+                drawText(g, font, letters[i], cursor, -9, cfg.waypointShadow);
+                cursor += font.width(letters[i]);
             }
         }
-        return line;
+
+        g.pose().popMatrix();
     }
+
+    //? if >= 26.2 {
+    private static void drawText(GuiGraphicsExtractor g, Font font, Component text, int x, int y, boolean shadow) {
+        g.text(font, text, x, y, 0xFFFFFFFF, shadow);
+    }
+
+    private static void drawItem(GuiGraphicsExtractor g, ItemStack stack) {
+        g.item(stack, 0, 0);
+    }
+    //?} else {
+    /*private static void drawText(GuiGraphics g, Font font, Component text, int x, int y, boolean shadow) {
+        g.drawString(font, text, x, y, 0xFFFFFFFF, shadow);
+    }
+
+    private static void drawItem(GuiGraphics g, ItemStack stack) {
+        g.renderItem(stack, 0, 0);
+    }
+    *///?}
 
     private static final class Target {
         final BlockPos pos;

@@ -187,9 +187,9 @@ public class MintConfig extends Config {
             description = "Makes both labels bigger or smaller.",
             category = "Team Chest",
             subcategory = "Waypoint Style",
-            min = 0.5f, max = 2f, step = 0.1f
+            min = 0.5f, max = 3f, step = 0.1f
     )
-    public float waypointScale = 1f;
+    public float waypointScale = 1.3f;
 
     @Slider(
             title = "Max Distance",
@@ -208,13 +208,14 @@ public class MintConfig extends Config {
     )
     public boolean waypointShrink = true;
 
-    @Switch(
-            title = "Show Letters",
-            description = "Put a small letter after each amount (i, g, d, e). Off colors the amount with the resource color instead.",
+    @Dropdown(
+            title = "Resource Marker",
+            description = "What goes next to each amount. Icon shows the item, Letter shows i, g, d or e, and None colors the amount with its resource color.",
             category = "Team Chest",
-            subcategory = "Waypoint Style"
+            subcategory = "Waypoint Style",
+            options = {"Icon", "Letter", "None"}
     )
-    public boolean waypointLetters = true;
+    public int waypointMarker = 0;
 
     @Switch(
             title = "Text Shadow",
