@@ -34,6 +34,7 @@ public final class SyncSelfTest {
         sidebar();
         recent();
         servers();
+        deposits();
         System.out.println(checks + " checks, " + failures + " failed");
         if (failures > 0) System.exit(1);
     }
@@ -281,6 +282,18 @@ public final class SyncSelfTest {
         check(!SidebarTeams.hasOwnTeamLine(Arrays.asList("R Red: \u2713", "G Green: \u2713", "Players: 7/8")), "no own team line");
         check(!SidebarTeams.hasOwnTeamLine(Arrays.asList("Players: 7/8", "Waiting...", "Map: Yoyo YOU")), "lobby lines are not a team");
         check(!SidebarTeams.hasOwnTeamLine(null), "null lines");
+    }
+
+    private static void deposits() {
+        // The real lines Hypixel printed after punch deposits
+        check(TeamChestMessage.depositAmount("Deposited x24 Iron Ingot into Team Chest! (24 Total)") == 24, "iron deposit line");
+        check(TeamChestMessage.depositAmount("Deposited x4 Gold Ingot into Team Chest! (4 Total)") == 4, "gold deposit line");
+        check(TeamChestMessage.depositAmount("Deposited x33 Iron Ingot into Team Chest! (33 Total)") == 33, "second iron deposit line");
+        check(TeamChestMessage.depositAmount("Deposited 64 Iron into Team Chest! (128 total)") == 64, "a line without the x still works");
+        check(TeamChestMessage.depositAmount("[MVP+] bewf: Deposited x5 things") == 0, "a player typing it is ignored");
+        check(TeamChestMessage.depositAmount("Party > bewf: [Mint | Team Chest: +10 iron]") == 0, "an update is not a deposit line");
+        check(TeamChestMessage.depositAmount("You deposited items") == 0, "other text");
+        check(TeamChestMessage.depositAmount(null) == 0, "no text");
     }
 
     private static void servers() {

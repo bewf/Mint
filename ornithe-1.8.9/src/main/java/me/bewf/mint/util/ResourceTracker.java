@@ -4,6 +4,7 @@ import me.bewf.mint.config.MintConfig;
 import me.bewf.mint.sync.ChestPicker;
 import me.bewf.mint.sync.Delta;
 import me.bewf.mint.sync.TeamChestLedger;
+import me.bewf.mint.sync.TeamChestMessage;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.Minecraft;
@@ -98,9 +99,6 @@ public class ResourceTracker {
             Pattern.compile("emerald", Pattern.CASE_INSENSITIVE)
     };
 
-    // "Deposited 64 Iron into Team Chest! (128 total)": only the first number is needed here
-    private static final Pattern TEAM_DEPOSIT_PATTERN = Pattern.compile("Deposited (\\d+) ", Pattern.CASE_INSENSITIVE);
-
     private static class PendingDeposit {
         Item item;
         int inventorySnapshot;
@@ -180,7 +178,8 @@ public class ResourceTracker {
         if (teamChestInteractionWarmup > 0 && msg.contains("Team Chest")) {
             Matcher totalMatcher = TOTAL_NUMBER_PATTERN.matcher(msg);
             if (totalMatcher.find()) {
-                teamChestInteractionWarmup = 0;
+                // A deposit line keeps the window open, so a second quick punch is read as well
+                teamChestInteractionWarmup = TeamChestMessage.depositAmount(msg) > 0 ? 40 : 0;
 
                 confirmHomeFromServer();
 
@@ -208,10 +207,10 @@ public class ResourceTracker {
                     ledger.total(resource, total, System.currentTimeMillis());
 
                     // A punch deposit is a change the rest of the party wants to hear about
-                    Matcher deposit = TEAM_DEPOSIT_PATTERN.matcher(msg);
-                    if (deposit.find()) {
+                    int deposited = TeamChestMessage.depositAmount(msg);
+                    if (deposited > 0) {
                         Delta change = new Delta();
-                        change.add(resource, Integer.parseInt(deposit.group(1)));
+                        change.add(resource, deposited);
                         TeamChestSync.record(change);
                     }
                 }
@@ -441,6 +440,8 @@ public class ResourceTracker {
         boolean inTeamChestGui = isTeamChestGuiOpen(mc);
         if (inTeamChestGui) {
             teamChestInteractionWarmup = 100;
+        } else if (teamChestInteractionWarmup > 0) {
+            teamChestInteractionWarmup--;
         }
         Counts teamCounts = inTeamChestGui ? countOpenChestContainer(mc) : new Counts();
         if (teamChestGuiWarmup > 0) {

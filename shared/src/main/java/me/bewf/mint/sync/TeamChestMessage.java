@@ -102,6 +102,17 @@ public final class TeamChestMessage {
         return new PartyLine(m.group(1), m.group(2));
     }
 
+    // "Deposited x24 Iron Ingot into Team Chest! (24 Total)", the line Hypixel prints after a punch deposit
+    private static final Pattern DEPOSIT = Pattern.compile("^Deposited x?(\\d{1,5})\\b", Pattern.CASE_INSENSITIVE);
+
+    /** How many items Hypixel says were deposited, or 0 when the line is not a deposit line. A player's chat line never starts this way. */
+    public static int depositAmount(String stripped) {
+        if (stripped == null) return 0;
+        Matcher m = DEPOSIT.matcher(stripped.trim());
+        if (!m.find()) return 0;
+        return Integer.parseInt(m.group(1));
+    }
+
     private static int indexOf(String tag) {
         for (int i = 0; i < TAGS.length; i++) if (TAGS[i].equals(tag)) return i;
         return -1;
