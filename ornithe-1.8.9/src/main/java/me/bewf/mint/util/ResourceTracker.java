@@ -117,6 +117,16 @@ public class ResourceTracker {
         return active;
     }
 
+    /** Where the team chest is, or null when it is not known yet. */
+    public static BlockPos homeChest() {
+        return homeChestPos;
+    }
+
+    /** Where the Ender Chest is, or null when it is not known yet. */
+    public static BlockPos homeEnderChest() {
+        return enderChestPos;
+    }
+
     public static void register() {
         EventManager.register(TickEvent.End.class, event -> onClientTick());
         EventManager.register(PlayerInteractEvent.class, ResourceTracker::onInteract);
