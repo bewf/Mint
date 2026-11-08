@@ -103,7 +103,7 @@ public class WaypointRenderer {
         // A text unit is one GUI pixel on screen, so the world size is that many pixels at this distance.
         double focal = (mc.displayHeight / 2.0) / Math.tan(Math.toRadians(mc.gameSettings.fovSetting) / 2.0);
         float worldScale = (float) (Math.max(dist, 1.0) * new ScaledResolution(mc).getScaleFactor() / focal)
-                * Projection.scaleFor(dist, cfg.waypointShrink) * cfg.waypointScale;
+                * Projection.scaleFor(dist, cfg.waypointShrink) * cfg.waypointSize;
 
         FontRenderer fr = mc.fontRendererObj;
         int marker = cfg.waypointMarker;

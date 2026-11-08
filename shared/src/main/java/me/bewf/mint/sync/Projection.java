@@ -87,11 +87,11 @@ public final class Projection {
         return shrink ? scaleFor(distance) : 1.0f;
     }
 
-    /** Label size: full size up close, shrinking with distance, never vanishing completely. */
+    /** Label size: full size up to 5 blocks, then easing down to 60 percent at 40 blocks and beyond. */
     public static float scaleFor(double distance) {
-        double s = 6.0 / Math.max(distance, 1.0);
-        if (s > 1.0) s = 1.0;
-        if (s < 0.45) s = 0.45;
-        return (float) s;
+        double t = (distance - 5.0) / 35.0;
+        if (t < 0.0) t = 0.0;
+        if (t > 1.0) t = 1.0;
+        return (float) (1.0 - 0.4 * t);
     }
 }

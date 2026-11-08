@@ -110,7 +110,7 @@ public final class WaypointRenderer {
                 if (p == null || p[2] > cfg.waypointMaxDistance) continue;
                 if (p[0] < -200 || p[0] > width + 200 || p[1] < -100 || p[1] > height + 100) continue;
 
-                float scale = guiScale * Projection.scaleFor(p[2], cfg.waypointShrink) * cfg.waypointScale;
+                float scale = guiScale * Projection.scaleFor(p[2], cfg.waypointShrink) * cfg.waypointSize;
                 drawLabel(mc, t, (float) p[0], (float) p[1], scale);
             }
         } finally {

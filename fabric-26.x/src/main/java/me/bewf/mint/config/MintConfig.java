@@ -184,12 +184,12 @@ public class MintConfig extends Config {
 
     @Slider(
             title = "Waypoint Size",
-            description = "Makes both labels bigger or smaller.",
+            description = "Makes both labels bigger or smaller. 1 is the size of normal game text.",
             category = "Team Chest",
             subcategory = "Waypoint Style",
-            min = 0.5f, max = 3f, step = 0.1f
+            min = 0.5f, max = 8f, step = 0.1f
     )
-    public float waypointScale = 1.3f;
+    public float waypointSize = 3.9f;
 
     @Slider(
             title = "Max Distance",
@@ -202,7 +202,7 @@ public class MintConfig extends Config {
 
     @Switch(
             title = "Shrink With Distance",
-            description = "Labels get smaller the further away they are. Off keeps them one size.",
+            description = "Labels get a little smaller the further away they are. Off keeps them one size.",
             category = "Team Chest",
             subcategory = "Waypoint Style"
     )

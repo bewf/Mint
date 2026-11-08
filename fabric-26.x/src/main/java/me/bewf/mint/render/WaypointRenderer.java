@@ -110,9 +110,9 @@ public final class WaypointRenderer {
             double[] p = Projection.project(eye.x, eye.y, eye.z, yaw, pitch, fov, width, height,
                     t.pos.getX() + 0.5, t.pos.getY() + 1.3, t.pos.getZ() + 0.5, bob);
             if (p == null || p[2] > cfg.waypointMaxDistance) continue;
-            if (p[0] < -60 || p[0] > width + 60 || p[1] < -30 || p[1] > height + 30) continue;
-
-            float scale = Projection.scaleFor(p[2], cfg.waypointShrink) * cfg.waypointScale;
+            float scale = Projection.scaleFor(p[2], cfg.waypointShrink) * cfg.waypointSize;
+            float reachX = 60f * scale, reachY = 12f * scale;
+            if (p[0] < -reachX || p[0] > width + reachX || p[1] < -reachY || p[1] > height + reachY + 10f * scale) continue;
             drawLabel(g, font, t, (float) p[0], (float) p[1], scale);
         }
     }
