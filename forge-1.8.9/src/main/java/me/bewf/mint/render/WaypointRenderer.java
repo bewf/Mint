@@ -9,7 +9,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.Entity;
+import net.minecraft.init.Items;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.BlockPos;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -103,12 +106,17 @@ public class WaypointRenderer {
                 * Projection.scaleFor(dist, cfg.waypointShrink) * cfg.waypointScale;
 
         FontRenderer fr = mc.fontRendererObj;
+        int marker = cfg.waypointMarker;
         int total = 0;
         for (int i = 0; i < parts.size(); i++) {
             WaypointLabel.Part part = parts.get(i);
             if (i > 0) total += fr.getStringWidth(" ");
             total += fr.getStringWidth(part.count);
-            if (cfg.waypointLetters) total += fr.getStringWidth(String.valueOf(part.letter));
+            if (marker == WaypointLabel.MARKER_ICON) {
+                total += 1 + ICON;
+            } else if (marker == WaypointLabel.MARKER_LETTER) {
+                total += fr.getStringWidth(String.valueOf(part.letter));
+            }
         }
 
         GlStateManager.pushMatrix();
@@ -126,17 +134,45 @@ public class WaypointRenderer {
         for (int i = 0; i < parts.size(); i++) {
             WaypointLabel.Part part = parts.get(i);
             if (i > 0) x += fr.getStringWidth(" ");
-            if (cfg.waypointLetters) {
-                x = fr.drawString(part.count, x, -fr.FONT_HEIGHT, 0xFF000000 | countRgb, shadow);
-                x = fr.drawString(String.valueOf(part.letter), x, -fr.FONT_HEIGHT, 0xFF000000 | resourceRgb[part.resource], shadow);
-            } else {
-                x = fr.drawString(part.count, x, -fr.FONT_HEIGHT, 0xFF000000 | resourceRgb[part.resource], shadow);
+            // The amount is in the chest's color when something marks the resource, and in the resource's color when nothing does
+            int amountRgb = marker == WaypointLabel.MARKER_NONE ? resourceRgb[part.resource] : countRgb;
+            fr.drawString(part.count, x, -fr.FONT_HEIGHT, 0xFF000000 | amountRgb, shadow);
+            x += fr.getStringWidth(part.count);
+            if (marker == WaypointLabel.MARKER_ICON) {
+                x += 1;
+                drawIcon(mc, part.resource, x, -ICON);
+                x += ICON;
+            } else if (marker == WaypointLabel.MARKER_LETTER) {
+                String letter = String.valueOf(part.letter);
+                fr.drawString(letter, x, -fr.FONT_HEIGHT, 0xFF000000 | resourceRgb[part.resource], shadow);
+                x += fr.getStringWidth(letter);
             }
         }
 
         GlStateManager.enableDepth();
         GlStateManager.disableBlend();
         GlStateManager.enableLighting();
+        GlStateManager.popMatrix();
+    }
+
+    /** Size of an item icon in text units. Items are 16 units, so they are shrunk to sit beside the text. */
+    private static final int ICON = 10;
+
+    private static ItemStack[] icons = null;
+
+    private static void drawIcon(Minecraft mc, int resource, float x, float y) {
+        if (icons == null) {
+            icons = new ItemStack[]{
+                    new ItemStack(Items.iron_ingot), new ItemStack(Items.gold_ingot),
+                    new ItemStack(Items.diamond), new ItemStack(Items.emerald)};
+        }
+        GlStateManager.pushMatrix();
+        // The game moves GUI items 100 units forward, so move them back by the same amount
+        GlStateManager.translate(x, y, -100f);
+        GlStateManager.scale(ICON / 16f, ICON / 16f, 1f);
+        RenderHelper.enableGUIStandardItemLighting();
+        mc.getRenderItem().renderItemIntoGUI(icons[resource], 0, 0);
+        RenderHelper.disableStandardItemLighting();
         GlStateManager.popMatrix();
     }
 }
