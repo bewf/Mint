@@ -118,6 +118,53 @@ public final class WaypointRenderer {
         }
     }
 
+    /** Size of an icon in text pixels. */
+    private static final int ICON = 10;
+
+    // Small hand drawn icons, because this build has no safe way to draw the game's own items.
+    // o is the outline, h a highlight, b the body and s a shade.
+    private static final String[] INGOT = {
+            "........",
+            "..ooooo.",
+            ".ohhhhbo",
+            "obbbbbbo",
+            "obbbbbso",
+            ".ooooooo",
+            "........",
+            "........",
+    };
+    private static final String[] GEM = {
+            "........",
+            "..oooo..",
+            ".ohhhbo.",
+            "ohhbbbbo",
+            "obbbbbso",
+            ".obbbso.",
+            "..obso..",
+            "...oo...",
+    };
+    private static final String[] OCTAGON = {
+            "..oooo..",
+            ".ohhhbo.",
+            "ohhbbbbo",
+            "ohbbbbso",
+            "obbbbbso",
+            "obbbssso",
+            ".osssso.",
+            "..oooo..",
+    };
+    private static final String[][] SHAPES = {INGOT, INGOT, GEM, OCTAGON};
+
+    // outline, highlight, body, shade for iron, gold, diamond and emerald
+    private static final int[][] PALETTE = {
+            {0x5C5C5C, 0xFFFFFF, 0xD0D0D0, 0x9A9A9A},
+            {0x8A5A00, 0xFFF6B0, 0xFFC71F, 0xD08A00},
+            {0x137C86, 0xD5FFFB, 0x4DEBD6, 0x23B3B3},
+            {0x0A6B24, 0xC9FFD9, 0x2BE06A, 0x14A84A},
+    };
+
+    private static final java.nio.FloatBuffer COLOR = org.lwjgl.BufferUtils.createFloatBuffer(16);
+
     private static void drawLabel(Minecraft mc, Target t, float x, float y, float scale) {
         MintConfig cfg = MintConfig.INSTANCE;
         int[] resourceRgb = {
@@ -126,14 +173,19 @@ public final class WaypointRenderer {
                 cfg.diamondColor.getRawArgb() & 0xFFFFFF,
                 cfg.emeraldColor.getRawArgb() & 0xFFFFFF,
         };
-
+        int marker = cfg.waypointMarker;
         int space = mc.textRenderer.getWidth(" ");
+
         int total = 0;
         for (int i = 0; i < t.parts.size(); i++) {
             WaypointLabel.Part part = t.parts.get(i);
             if (i > 0) total += space;
             total += mc.textRenderer.getWidth(part.count);
-            if (cfg.waypointLetters) total += mc.textRenderer.getWidth(String.valueOf(part.letter));
+            if (marker == WaypointLabel.MARKER_ICON) {
+                total += 1 + ICON;
+            } else if (marker == WaypointLabel.MARKER_LETTER) {
+                total += mc.textRenderer.getWidth(String.valueOf(part.letter));
+            }
         }
 
         GL11.glPushMatrix();
@@ -145,19 +197,61 @@ public final class WaypointRenderer {
         for (int i = 0; i < t.parts.size(); i++) {
             WaypointLabel.Part part = t.parts.get(i);
             if (i > 0) cursor += space;
-            if (cfg.waypointLetters) {
-                mc.textRenderer.draw(part.count, cursor, -9f, 0xFF000000 | t.countRgb, shadow);
-                cursor += mc.textRenderer.getWidth(part.count);
+            // The amount is in the chest's color when something marks the resource, and in the resource's color when nothing does
+            int countRgb = marker == WaypointLabel.MARKER_NONE ? resourceRgb[part.resource] : t.countRgb;
+            mc.textRenderer.draw(part.count, cursor, -9f, 0xFF000000 | countRgb, shadow);
+            cursor += mc.textRenderer.getWidth(part.count);
+            if (marker == WaypointLabel.MARKER_ICON) {
+                cursor += 1;
+                drawIcon(cursor, -ICON, part.resource, shadow);
+                cursor += ICON;
+            } else if (marker == WaypointLabel.MARKER_LETTER) {
                 String letter = String.valueOf(part.letter);
                 mc.textRenderer.draw(letter, cursor, -9f, 0xFF000000 | resourceRgb[part.resource], shadow);
                 cursor += mc.textRenderer.getWidth(letter);
-            } else {
-                mc.textRenderer.draw(part.count, cursor, -9f, 0xFF000000 | resourceRgb[part.resource], shadow);
-                cursor += mc.textRenderer.getWidth(part.count);
             }
         }
 
         GL11.glPopMatrix();
+    }
+
+    /** Draws one icon from its pixels. The current color is put back afterwards, so the text after it is not tinted. */
+    private static void drawIcon(float x, float y, int resource, boolean shadow) {
+        COLOR.clear();
+        GL11.glGetFloat(GL11.GL_CURRENT_COLOR, COLOR);
+        float r = COLOR.get(0);
+        float g = COLOR.get(1);
+        float b = COLOR.get(2);
+        float a = COLOR.get(3);
+
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        String[] shape = SHAPES[resource];
+        float pixel = ICON / 8f;
+        for (int pass = shadow ? 0 : 1; pass < 2; pass++) {
+            float dx = pass == 0 ? 1f : 0f;
+            GL11.glBegin(GL11.GL_QUADS);
+            for (int row = 0; row < 8; row++) {
+                for (int col = 0; col < 8; col++) {
+                    int slot = "ohbs".indexOf(shape[row].charAt(col));
+                    if (slot < 0) continue;
+                    int rgb = PALETTE[resource][slot];
+                    if (pass == 0) {
+                        GL11.glColor4f(0f, 0f, 0f, 0.35f);
+                    } else {
+                        GL11.glColor4f(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, 1f);
+                    }
+                    float left = x + col * pixel + dx;
+                    float top = y + row * pixel + dx;
+                    GL11.glVertex2f(left, top);
+                    GL11.glVertex2f(left, top + pixel);
+                    GL11.glVertex2f(left + pixel, top + pixel);
+                    GL11.glVertex2f(left + pixel, top);
+                }
+            }
+            GL11.glEnd();
+        }
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glColor4f(r, g, b, a);
     }
 
     /** The team chest or Ender Chest colour picked in the HUD settings, or the default when the HUD is not there. */
