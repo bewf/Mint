@@ -66,6 +66,7 @@ public final class WaypointRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
         if (!ResourceTracker.isActive() && !cfg.showOutsideBedwars) return;
+
         // The game's own camera, so third person (F5, either side) lines up too, and so does the eye
         // height smoothing when sneaking. In first person the turn comes from the player, which is
         // always this frame's, and only the position comes from the camera.
@@ -156,47 +157,59 @@ public final class WaypointRenderer {
                 cfg.emeraldColor.getRawArgb() & 0xFFFFFF,
         };
         int marker = cfg.waypointMarker;
-        int gap = font.width(" ");
 
         // The amount is in the chest's color when something marks the resource, and in the resource's color when nothing does
         int n = t.parts.size();
         Component[] counts = new Component[n];
         Component[] letters = new Component[n];
-        int total = 0;
+        int[] cellWidth = new int[n];
+        int columnWidth = 0;
         for (int i = 0; i < n; i++) {
             WaypointLabel.Part part = t.parts.get(i);
             int countRgb = marker == WaypointLabel.MARKER_NONE ? resourceRgb[part.resource] : t.countRgb;
             counts[i] = Component.literal(part.count).withColor(countRgb);
-            total += font.width(counts[i]);
+            cellWidth[i] = font.width(counts[i]);
             if (marker == WaypointLabel.MARKER_ICON) {
-                total += 1 + ICON;
+                cellWidth[i] += 1 + ICON;
             } else if (marker == WaypointLabel.MARKER_LETTER) {
                 letters[i] = Component.literal(String.valueOf(part.letter)).withColor(resourceRgb[part.resource]);
-                total += font.width(letters[i]);
+                cellWidth[i] += font.width(letters[i]);
             }
-            if (i > 0) total += gap;
+            columnWidth = Math.max(columnWidth, cellWidth[i]);
         }
+
+        // Up to two per row. A row of two uses two columns of the same width, so a pair lines up with the row above it.
+        List<List<WaypointLabel.Part>> rows = WaypointLabel.rows(t.parts);
+        float halfStep = (columnWidth + font.width("  ")) / 2f;
 
         g.pose().pushMatrix();
         g.pose().translate(x, y);
         g.pose().scale(scale, scale);
 
-        int cursor = -total / 2;
-        for (int i = 0; i < n; i++) {
-            if (i > 0) cursor += gap;
-            drawText(g, font, counts[i], cursor, -9, cfg.waypointShadow);
-            cursor += font.width(counts[i]);
-            if (marker == WaypointLabel.MARKER_ICON) {
-                cursor += 1;
+        for (int row = 0; row < rows.size(); row++) {
+            List<WaypointLabel.Part> cells = rows.get(row);
+            // The last row is the bottom one and sits where a single row would. The others stack above it.
+            int rowY = -(rows.size() - 1 - row) * (ICON + 2);
+            for (int c = 0; c < cells.size(); c++) {
+                int i = t.parts.indexOf(cells.get(c));
+                float center = cells.size() == 1 ? 0f : (c == 0 ? -halfStep : halfStep);
+
                 g.pose().pushMatrix();
-                g.pose().translate((float) cursor, (float) -ICON);
-                g.pose().scale(ICON / 16f, ICON / 16f);
-                drawItem(g, icon(t.parts.get(i).resource));
+                g.pose().translate(Math.round(center - cellWidth[i] / 2f), (float) rowY);
+                int cursor = 0;
+                drawText(g, font, counts[i], cursor, -9, cfg.waypointShadow);
+                cursor += font.width(counts[i]);
+                if (marker == WaypointLabel.MARKER_ICON) {
+                    cursor += 1;
+                    g.pose().pushMatrix();
+                    g.pose().translate((float) cursor, (float) -ICON);
+                    g.pose().scale(ICON / 16f, ICON / 16f);
+                    drawItem(g, icon(t.parts.get(i).resource));
+                    g.pose().popMatrix();
+                } else if (marker == WaypointLabel.MARKER_LETTER) {
+                    drawText(g, font, letters[i], cursor, -9, cfg.waypointShadow);
+                }
                 g.pose().popMatrix();
-                cursor += ICON;
-            } else if (marker == WaypointLabel.MARKER_LETTER) {
-                drawText(g, font, letters[i], cursor, -9, cfg.waypointShadow);
-                cursor += font.width(letters[i]);
             }
         }
 

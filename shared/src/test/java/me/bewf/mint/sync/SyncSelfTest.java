@@ -288,6 +288,25 @@ public final class SyncSelfTest {
         eq(WaypointLabel.parts(none, inv, all, WaypointLabel.AMOUNT_TOTAL).get(0).count, "10",
                 "total counts the inventory even when the chest is empty");
 
+        // layout: one row for one or two, then two on the bottom and the rest above
+        int[] fullChest = {5, 6, 7, 8};
+        List<WaypointLabel.Part> four = WaypointLabel.parts(fullChest, none, all, WaypointLabel.AMOUNT_CHEST);
+        List<List<WaypointLabel.Part>> rows4 = WaypointLabel.rows(four);
+        eq(rows4.size(), 2, "four resources make two rows");
+        eq(rows4.get(0).get(0).resource + "" + rows4.get(0).get(1).resource, "23", "diamond and emerald on top");
+        eq(rows4.get(1).get(0).resource + "" + rows4.get(1).get(1).resource, "01", "iron and gold on the bottom");
+        List<List<WaypointLabel.Part>> rows3 = WaypointLabel.rows(WaypointLabel.parts(new int[]{5, 0, 7, 8}, none, all, WaypointLabel.AMOUNT_CHEST));
+        eq(rows3.size(), 2, "three resources make two rows");
+        eq(rows3.get(0).size(), 1, "one on top for three");
+        eq(rows3.get(1).size(), 2, "two on the bottom for three");
+        eq(rows3.get(1).get(0).resource + "" + rows3.get(1).get(1).resource, "02", "the first two go on the bottom");
+        eq(rows3.get(0).get(0).resource, 3, "the last one goes on top");
+        List<List<WaypointLabel.Part>> rows2 = WaypointLabel.rows(WaypointLabel.parts(new int[]{0, 6, 0, 8}, none, all, WaypointLabel.AMOUNT_CHEST));
+        eq(rows2.size(), 1, "two resources share a row");
+        eq(rows2.get(0).size(), 2, "both beside each other");
+        eq(WaypointLabel.rows(WaypointLabel.parts(new int[]{0, 0, 7, 0}, none, all, WaypointLabel.AMOUNT_CHEST)).get(0).size(), 1, "one resource is one cell");
+        eq(WaypointLabel.rows(WaypointLabel.parts(none, none, all, WaypointLabel.AMOUNT_CHEST)).size(), 0, "nothing makes no rows");
+
         check(Projection.scaleFor(50, false) == 1.0f, "no shrinking keeps full size");
         check(Projection.scaleFor(12, true) == Projection.scaleFor(12), "shrinking matches scaleFor");
         eq(Numbers.compact(1200), "1.2k", "compact 1200");

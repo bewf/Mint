@@ -174,41 +174,49 @@ public final class WaypointRenderer {
                 cfg.emeraldColor.getRawArgb() & 0xFFFFFF,
         };
         int marker = cfg.waypointMarker;
-        int space = mc.textRenderer.getWidth(" ");
 
-        int total = 0;
-        for (int i = 0; i < t.parts.size(); i++) {
+        int n = t.parts.size();
+        int[] cellWidth = new int[n];
+        int columnWidth = 0;
+        for (int i = 0; i < n; i++) {
             WaypointLabel.Part part = t.parts.get(i);
-            if (i > 0) total += space;
-            total += mc.textRenderer.getWidth(part.count);
+            cellWidth[i] = mc.textRenderer.getWidth(part.count);
             if (marker == WaypointLabel.MARKER_ICON) {
-                total += 1 + ICON;
+                cellWidth[i] += 1 + ICON;
             } else if (marker == WaypointLabel.MARKER_LETTER) {
-                total += mc.textRenderer.getWidth(String.valueOf(part.letter));
+                cellWidth[i] += mc.textRenderer.getWidth(String.valueOf(part.letter));
             }
+            columnWidth = Math.max(columnWidth, cellWidth[i]);
         }
+
+        // Up to two per row. A row of two uses two columns of the same width, so a pair lines up with the row above it.
+        List<List<WaypointLabel.Part>> rows = WaypointLabel.rows(t.parts);
+        float halfStep = (columnWidth + mc.textRenderer.getWidth("  ")) / 2f;
 
         GL11.glPushMatrix();
         GL11.glTranslatef(x, y, 0f);
         GL11.glScalef(scale, scale, 1f);
 
-        float cursor = -total / 2f;
         boolean shadow = cfg.waypointShadow;
-        for (int i = 0; i < t.parts.size(); i++) {
-            WaypointLabel.Part part = t.parts.get(i);
-            if (i > 0) cursor += space;
-            // The amount is in the chest's color when something marks the resource, and in the resource's color when nothing does
-            int countRgb = marker == WaypointLabel.MARKER_NONE ? resourceRgb[part.resource] : t.countRgb;
-            mc.textRenderer.draw(part.count, cursor, -9f, 0xFF000000 | countRgb, shadow);
-            cursor += mc.textRenderer.getWidth(part.count);
-            if (marker == WaypointLabel.MARKER_ICON) {
-                cursor += 1;
-                drawIcon(cursor, -ICON, part.resource, shadow);
-                cursor += ICON;
-            } else if (marker == WaypointLabel.MARKER_LETTER) {
-                String letter = String.valueOf(part.letter);
-                mc.textRenderer.draw(letter, cursor, -9f, 0xFF000000 | resourceRgb[part.resource], shadow);
-                cursor += mc.textRenderer.getWidth(letter);
+        for (int row = 0; row < rows.size(); row++) {
+            List<WaypointLabel.Part> cells = rows.get(row);
+            // The last row is the bottom one and sits where a single row would. The others stack above it.
+            float rowY = -(rows.size() - 1 - row) * (ICON + 2);
+            for (int c = 0; c < cells.size(); c++) {
+                WaypointLabel.Part part = cells.get(c);
+                float center = cells.size() == 1 ? 0f : (c == 0 ? -halfStep : halfStep);
+                float cursor = Math.round(center - cellWidth[t.parts.indexOf(part)] / 2f);
+
+                // The amount is in the chest's color when something marks the resource, and in the resource's color when nothing does
+                int countRgb = marker == WaypointLabel.MARKER_NONE ? resourceRgb[part.resource] : t.countRgb;
+                mc.textRenderer.draw(part.count, cursor, rowY - 9f, 0xFF000000 | countRgb, shadow);
+                cursor += mc.textRenderer.getWidth(part.count);
+                if (marker == WaypointLabel.MARKER_ICON) {
+                    cursor += 1;
+                    drawIcon(cursor, rowY - ICON, part.resource, shadow);
+                } else if (marker == WaypointLabel.MARKER_LETTER) {
+                    mc.textRenderer.draw(String.valueOf(part.letter), cursor, rowY - 9f, 0xFF000000 | resourceRgb[part.resource], shadow);
+                }
             }
         }
 
