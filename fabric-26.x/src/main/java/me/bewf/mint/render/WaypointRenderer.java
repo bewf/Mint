@@ -66,12 +66,24 @@ public final class WaypointRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
         if (!ResourceTracker.isActive() && !cfg.showOutsideBedwars) return;
-        // The projection assumes the camera sits at the player's eyes
-        if (!mc.options.getCameraType().isFirstPerson()) return;
-
-        Vec3 eye = mc.player.getEyePosition(partialTick);
-        double yaw = mc.player.getViewYRot(partialTick);
-        double pitch = mc.player.getViewXRot(partialTick);
+        // The game's own camera, so third person (F5, either side) lines up too, and so does the eye
+        // height smoothing when sneaking. In first person the turn comes from the player, which is
+        // always this frame's, and only the position comes from the camera.
+        double[] cam = ViewInfo.camera(mc);
+        Vec3 eye;
+        double yaw;
+        double pitch;
+        if (mc.options.getCameraType().isFirstPerson()) {
+            eye = cam != null ? new Vec3(cam[0], cam[1], cam[2]) : mc.player.getEyePosition(partialTick);
+            yaw = mc.player.getViewYRot(partialTick);
+            pitch = mc.player.getViewXRot(partialTick);
+        } else if (cam != null) {
+            eye = new Vec3(cam[0], cam[1], cam[2]);
+            yaw = cam[3];
+            pitch = cam[4];
+        } else {
+            return;
+        }
         // What the game really uses this frame: sprinting widens the view and walking sways it
         double fov = ViewInfo.fov(mc, partialTick, mc.options.fov().get());
         double[] bob = ViewInfo.bob(mc, partialTick);
