@@ -39,7 +39,7 @@ public final class WaypointLabel {
 
     /**
      * @param chest     what is in the chest, in {@link Delta} order (iron, gold, diamond, emerald)
-     * @param inventory what the player is carrying, same order
+     * @param inventory what is in the player's inventory, same order
      * @param show      which resources may appear, same order
      * @param amount    {@link #AMOUNT_CHEST} or {@link #AMOUNT_TOTAL}
      */

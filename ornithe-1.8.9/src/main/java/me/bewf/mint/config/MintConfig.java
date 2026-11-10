@@ -134,7 +134,7 @@ public class MintConfig extends Config {
 
     @Dropdown(
             title = "Team Chest Amount",
-            description = "Chest only shows what is in the chest. Chest + inventory adds what you are carrying.",
+            description = "Chest only shows what is in the chest. Chest + inventory adds your inventory.",
             category = "Team Chest",
             subcategory = "Team Chest Waypoint",
             options = {"Chest only", "Chest + inventory"}
@@ -163,7 +163,7 @@ public class MintConfig extends Config {
 
     @Dropdown(
             title = "Ender Chest Amount",
-            description = "Chest only shows what is in the Ender Chest. Chest + inventory adds what you are carrying.",
+            description = "Chest only shows what is in the Ender Chest. Chest + inventory adds your inventory.",
             category = "Team Chest",
             subcategory = "Ender Chest Waypoint",
             options = {"Chest only", "Chest + inventory"}
