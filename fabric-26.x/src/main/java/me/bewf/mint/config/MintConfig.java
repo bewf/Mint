@@ -20,7 +20,7 @@ public class MintConfig extends Config {
 
     @Switch(
             title = "Share Team Chest In Party Chat",
-            description = "Use at your own risk. Send a message in party chat when you deposit or take things out of the team chest. This will automatically update the HUD for other people with this mod. Only sent while you are in a party.",
+            description = "The following settings are used at your own risk. Send a message in party chat when you deposit or take things out of the team chest. This will automatically update the HUD for other people with this mod. Only sent while you are in a party.",
             category = "Team Chest",
             subcategory = "Party Sync"
     )
@@ -44,7 +44,7 @@ public class MintConfig extends Config {
 
     @Text(
             title = "Server 1 Address",
-            description = "The server's address, like hypixel.net. Its subdomains count too. Hypixel is filled in as an example.",
+            description = "The server's address, like hypixel.net. Its subdomains count too. Hypixel is filled in as an example. Away from Hypixel the mod sends updates whether or not you are in a party.",
             category = "Team Chest",
             subcategory = "Party Servers"
     )
