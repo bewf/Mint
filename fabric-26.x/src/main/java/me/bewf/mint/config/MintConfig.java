@@ -189,16 +189,16 @@ public class MintConfig extends Config {
             subcategory = "Waypoint Style",
             min = 0.5f, max = 8f, step = 0.1f
     )
-    public float waypointSize = 3.9f;
+    public float waypointSize = 2.5f;
 
     @Slider(
             title = "Max Distance",
             description = "Labels further away than this many blocks are hidden.",
             category = "Team Chest",
             subcategory = "Waypoint Style",
-            min = 16f, max = 128f, step = 4f
+            min = 16f, max = 512f, step = 4f
     )
-    public float waypointMaxDistance = 64f;
+    public float waypointMaxDistance = 128f;
 
     @Switch(
             title = "Shrink With Distance",

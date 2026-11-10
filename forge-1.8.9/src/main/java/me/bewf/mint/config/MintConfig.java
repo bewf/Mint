@@ -60,11 +60,11 @@ public class MintConfig extends Config {
 
     @Checkbox(
             name = "Track Team Chest",
-            description = "Tracks team chest. Note that the HUD will not update if a teammate takes something in or out of the chest.",
+            description = "Tracks team chest. With party sync on, changes your teammates make update it too.",
             category = "HUD",
             subcategory = "Storage"
     )
-    public boolean trackTeamChest = false;
+    public boolean trackTeamChest = true;
 
     @Color(
             name = "Inventory Color",
@@ -304,16 +304,16 @@ public class MintConfig extends Config {
             subcategory = "Waypoint Style",
             min = 0.5f, max = 8f
     )
-    public float waypointSize = 3.9f;
+    public float waypointSize = 2.5f;
 
     @Slider(
             name = "Max Distance",
             description = "Labels further away than this many blocks are hidden.",
             category = "Team Chest",
             subcategory = "Waypoint Style",
-            min = 16f, max = 128f
+            min = 16f, max = 512f
     )
-    public float waypointMaxDistance = 64f;
+    public float waypointMaxDistance = 128f;
 
     @Checkbox(
             name = "Shrink With Distance",

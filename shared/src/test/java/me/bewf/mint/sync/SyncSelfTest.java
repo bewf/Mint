@@ -256,10 +256,9 @@ public final class SyncSelfTest {
         check(Projection.project(0, 64, 0, 0, 0, 70, 400, 300, 0, 64, 10, new double[]{0, 0, 0, 180}) == null, "turned all the way round is behind");
 
         check(Projection.scaleFor(3) == 1.0f, "full size up close");
-        check(Projection.scaleFor(5) == 1.0f, "still full size at 5 blocks");
-        check(Math.abs(Projection.scaleFor(12) - 0.92f) < 1e-5, "only slightly smaller at 12 blocks");
-        check(Math.abs(Projection.scaleFor(22.5) - 0.8f) < 1e-5, "80 percent halfway");
-        check(Math.abs(Projection.scaleFor(500) - 0.6f) < 1e-5, "never smaller than 60 percent");
+        check(Projection.scaleFor(10) == 1.0f, "same size out to 10 blocks");
+        check(Math.abs(Projection.scaleFor(35) - 0.725f) < 1e-5, "partway smaller at 35 blocks");
+        check(Math.abs(Projection.scaleFor(500) - 0.45f) < 1e-5, "never smaller than 45 percent");
     }
 
     private static void label() {

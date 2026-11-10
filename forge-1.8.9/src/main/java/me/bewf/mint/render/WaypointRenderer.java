@@ -88,7 +88,7 @@ public class WaypointRenderer {
         if (pos == null || parts == null || parts.isEmpty()) return;
 
         double dx = pos.getX() + 0.5 - vx;
-        double dy = pos.getY() + 1.3 - vy;
+        double dy = pos.getY() + WaypointLabel.HEIGHT_ABOVE_CHEST - vy;
         double dz = pos.getZ() + 0.5 - vz;
         double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
         MintConfig cfg = MintConfig.INSTANCE;
@@ -124,7 +124,7 @@ public class WaypointRenderer {
 
         // Up to two per row. A row of two uses two columns of the same width, so a pair lines up with the row above it.
         List<List<WaypointLabel.Part>> rows = WaypointLabel.rows(parts);
-        float halfStep = (columnWidth + fr.getStringWidth("  ")) / 2f;
+        float halfStep = (columnWidth + fr.getStringWidth(" ")) / 2f;
 
         GlStateManager.pushMatrix();
         GlStateManager.translate((float) dx, (float) dy, (float) dz);

@@ -106,7 +106,7 @@ public final class WaypointRenderer {
 
                 // Just above the top of the chest, in the middle
                 double[] p = Projection.project(ex, ey, ez, yaw, pitch, fov, width, height,
-                        t.pos.getX() + 0.5, t.pos.getY() + 1.3, t.pos.getZ() + 0.5);
+                        t.pos.getX() + 0.5, t.pos.getY() + WaypointLabel.HEIGHT_ABOVE_CHEST, t.pos.getZ() + 0.5);
                 if (p == null || p[2] > cfg.waypointMaxDistance) continue;
                 if (p[0] < -200 || p[0] > width + 200 || p[1] < -100 || p[1] > height + 100) continue;
 
@@ -191,7 +191,7 @@ public final class WaypointRenderer {
 
         // Up to two per row. A row of two uses two columns of the same width, so a pair lines up with the row above it.
         List<List<WaypointLabel.Part>> rows = WaypointLabel.rows(t.parts);
-        float halfStep = (columnWidth + mc.textRenderer.getWidth("  ")) / 2f;
+        float halfStep = (columnWidth + mc.textRenderer.getWidth(" ")) / 2f;
 
         GL11.glPushMatrix();
         GL11.glTranslatef(x, y, 0f);

@@ -10,6 +10,9 @@ import java.util.List;
  */
 public final class WaypointLabel {
 
+    /** How far above the top of a chest the label sits. Hypixel's own "Punch to Deposit" text is just below it. */
+    public static final double HEIGHT_ABOVE_CHEST = 2.6;
+
     private WaypointLabel() {
     }
 

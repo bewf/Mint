@@ -121,7 +121,7 @@ public final class WaypointRenderer {
 
             // Just above the top of the chest, in the middle
             double[] p = Projection.project(eye.x, eye.y, eye.z, yaw, pitch, fov, width, height,
-                    t.pos.getX() + 0.5, t.pos.getY() + 1.3, t.pos.getZ() + 0.5, bob);
+                    t.pos.getX() + 0.5, t.pos.getY() + WaypointLabel.HEIGHT_ABOVE_CHEST, t.pos.getZ() + 0.5, bob);
             if (p == null || p[2] > cfg.waypointMaxDistance) continue;
             float scale = Projection.scaleFor(p[2], cfg.waypointShrink) * cfg.waypointSize;
             float reachX = 60f * scale, reachY = 12f * scale;
@@ -180,7 +180,7 @@ public final class WaypointRenderer {
 
         // Up to two per row. A row of two uses two columns of the same width, so a pair lines up with the row above it.
         List<List<WaypointLabel.Part>> rows = WaypointLabel.rows(t.parts);
-        float halfStep = (columnWidth + font.width("  ")) / 2f;
+        float halfStep = (columnWidth + font.width(" ")) / 2f;
 
         g.pose().pushMatrix();
         g.pose().translate(x, y);

@@ -77,10 +77,10 @@ class ResourceIconHud : Hud("mint_resource_hud.json", "Resource Tracker", Hud.Ca
 
     @Switch(
         title = "Track Team Chest",
-        description = "Tracks team chest. Note that the HUD will not update if a teammate takes something in or out of the chest.",
+        description = "Tracks team chest. With party sync on, changes your teammates make update it too.",
         category = "General", subcategory = "Display"
     )
-    var trackTeamChest: Boolean = false
+    var trackTeamChest: Boolean = true
 
     @Color(title = "Inventory Color", category = "General", subcategory = "Colors")
     var inventoryColor: PolyColor = PolyColor(0xFFE8D9C2.toInt())

@@ -87,11 +87,11 @@ public final class Projection {
         return shrink ? scaleFor(distance) : 1.0f;
     }
 
-    /** Label size: full size up to 5 blocks, then easing down to 60 percent at 40 blocks and beyond. */
+    /** Label size: the same up to 10 blocks, then easing down to 45 percent at 60 blocks and beyond. */
     public static float scaleFor(double distance) {
-        double t = (distance - 5.0) / 35.0;
+        double t = (distance - 10.0) / 50.0;
         if (t < 0.0) t = 0.0;
         if (t > 1.0) t = 1.0;
-        return (float) (1.0 - 0.4 * t);
+        return (float) (1.0 - 0.55 * t);
     }
 }
