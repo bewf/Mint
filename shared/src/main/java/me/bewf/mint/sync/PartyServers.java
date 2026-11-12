@@ -53,4 +53,10 @@ public final class PartyServers {
         if (c.isEmpty() || c.indexOf('\n') >= 0 || c.indexOf('\r') >= 0) return null;
         return c;
     }
+
+    /** True for Hypixel, the one server where the party can be checked with {@code /party list}. */
+    public static boolean isHypixel(String address) {
+        String host = host(address);
+        return host.equals("hypixel.net") || host.endsWith(".hypixel.net");
+    }
 }

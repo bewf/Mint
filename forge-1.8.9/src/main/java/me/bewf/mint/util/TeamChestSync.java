@@ -3,6 +3,7 @@ package me.bewf.mint.util;
 import me.bewf.mint.config.MintConfig;
 import me.bewf.mint.sync.ChestBuffer;
 import me.bewf.mint.sync.Delta;
+import me.bewf.mint.sync.PartyQuery;
 import me.bewf.mint.sync.PartyServers;
 import me.bewf.mint.sync.PartyState;
 import me.bewf.mint.sync.RecentMessages;
@@ -26,8 +27,8 @@ import java.util.Map;
  * Shares team chest changes with the party and reads the ones teammates share.
  * <p>
  * Changes are collected in a small buffer and sent as one party message, for example
- * {@code [Mint | Team Chest: +10 iron, -4 dia]}. A repeat of a message just sent gets a counter, like {@code #7}. Nothing is sent outside a party, and Hypixel's
- * own "not in a party" reply stops further tries. The message format and all the timing rules live in
+ * {@code [Mint | Team Chest: +10 iron, -4 dia]}. A repeat of a message just sent gets a counter, like {@code #7}. On Hypixel nothing is sent until a quiet
+ * {@code /party list} has shown there is a party. The message format and all the timing rules live in
  * the shared {@code me.bewf.mint.sync} package.
  */
 public final class TeamChestSync {
@@ -39,6 +40,8 @@ public final class TeamChestSync {
     private static final ChestBuffer BUFFER = new ChestBuffer(500L, 1000L);
 
     private static PartyState party = PartyState.UNKNOWN;
+    private static final PartyQuery QUERY = new PartyQuery();
+    private static String lastHost = "";
     private static int nextSeq = 0;
     private static boolean tipPending = false;
 
@@ -68,7 +71,12 @@ public final class TeamChestSync {
 
     private static void handle(ClientChatReceivedEvent event) {
         String stripped = StringUtils.stripControlCodes(event.message.getUnformattedText());
+        boolean partyListReply = QUERY.hides(stripped, System.currentTimeMillis());
         party = party.after(stripped);
+        if (partyListReply) {
+            event.setCanceled(true);
+            return;
+        }
 
         TeamChestMessage.PartyLine line = TeamChestMessage.party(stripped);
         if (line == null) return;
@@ -95,7 +103,8 @@ public final class TeamChestSync {
 
     /** The player changed the team chest. Deposits are positive, withdrawals negative. */
     public static void record(Delta change) {
-        if (!MintConfig.INSTANCE.partySync || !party.canSend() || partyCommand() == null) return;
+        watchServer();
+        if (!MintConfig.INSTANCE.partySync || party == PartyState.OUT || partyCommand() == null) return;
         BUFFER.add(change, System.currentTimeMillis());
     }
 
@@ -106,18 +115,52 @@ public final class TeamChestSync {
 
     /** Called every tick while in a game. */
     public static void tick() {
+        watchServer();
         if (tipPending) {
             tipPending = false;
             showTip();
         }
-        Delta ready = BUFFER.poll(System.currentTimeMillis());
-        if (ready == null) return;
-        if (!MintConfig.INSTANCE.partySync || !party.canSend()) return;
-        send(ready);
+        if (!MintConfig.INSTANCE.partySync || party == PartyState.OUT) {
+            BUFFER.reset();
+            return;
+        }
+        if (!BUFFER.hasPending()) return;
+
+        long now = System.currentTimeMillis();
+        if (!party.canSend(checksParty())) {
+            // On Hypixel nothing goes to party chat until /party list has said there is a party
+            if (QUERY.shouldAsk(party, now)) askParty(now);
+            return;
+        }
+        Delta ready = BUFFER.poll(now);
+        if (ready != null) send(ready);
+    }
+
+    /** Forgets what was known about the party when the player moves to another server. */
+    private static void watchServer() {
+        String host = PartyServers.host(BedwarsDetector.serverAddress());
+        if (host.equals(lastHost)) return;
+        lastHost = host;
+        party = PartyState.UNKNOWN;
+        QUERY.reset();
+    }
+
+    /** True where the party can be checked quietly instead of guessed. */
+    private static boolean checksParty() {
+        return PartyServers.isHypixel(BedwarsDetector.serverAddress());
+    }
+
+    /** Sends /party list. Its reply is hidden and sets the party state. */
+    private static void askParty(long now) {
+        QUERY.asked(now);
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.thePlayer == null) return;
+        mc.thePlayer.sendChatMessage("/" + PartyQuery.COMMAND);
     }
 
     public static void resetGame() {
         BUFFER.reset();
+        QUERY.reset();
         LAST_SEQ.clear();
         SENT.clear();
         RECENT.clear();

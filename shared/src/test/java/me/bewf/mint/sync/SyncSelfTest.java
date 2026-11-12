@@ -28,6 +28,7 @@ public final class SyncSelfTest {
         buffer();
         ledger();
         partyState();
+        partyQuery();
         picker();
         projection();
         label();
@@ -150,10 +151,11 @@ public final class SyncSelfTest {
 
     private static void partyState() {
         PartyState s = PartyState.UNKNOWN;
-        check(s.canSend(), "unknown state still tries");
+        check(s.canSend(false), "unknown state still tries away from Hypixel");
+        check(!s.canSend(true), "unknown state waits for the check on Hypixel");
         s = s.after("You are not in a party right now.");
         eq(s, PartyState.OUT, "not in a party");
-        check(!s.canSend(), "no sending when out");
+        check(!s.canSend(false) && !s.canSend(true), "no sending when out");
         s = s.after("You have joined [MVP+] Steve's party!");
         eq(s, PartyState.IN, "joined");
         s = s.after("Party > [MVP+] Steve: You left the party.");
@@ -166,8 +168,38 @@ public final class SyncSelfTest {
         eq(s, PartyState.OUT, "disbanded");
         s = s.after("Party Members (3)");
         eq(s, PartyState.IN, "party list");
+        check(s.canSend(true), "in a party sends on Hypixel");
         s = s.after("Just some other line");
         eq(s, PartyState.IN, "unrelated lines change nothing");
+        s = s.after("[VIP] Alex has left the party.");
+        eq(s, PartyState.UNKNOWN, "someone leaving needs a new check");
+        s = s.after("Party Leader: [MVP+] Steve ?");
+        eq(s, PartyState.IN, "check says party");
+    }
+
+    private static void partyQuery() {
+        PartyQuery q = new PartyQuery();
+        check(q.shouldAsk(PartyState.UNKNOWN, 1000), "asks the first time");
+        check(!q.shouldAsk(PartyState.IN, 1000), "no check when the state is known");
+        q.asked(1000);
+        check(!q.shouldAsk(PartyState.UNKNOWN, 5000), "cooldown");
+        check(q.shouldAsk(PartyState.UNKNOWN, 11000), "asks again after the cooldown");
+        String dashes = "-----------------------------------------------------";
+        check(q.hides(dashes, 1500), "first dash line hidden");
+        check(q.hides("Party Members (2)", 1500), "header hidden");
+        check(q.hides("", 1500), "blank hidden");
+        check(q.hides("Party Leader: [MVP+] Steve ?", 1500), "leader hidden");
+        check(!q.hides("Party > [MVP+] Steve: hello", 1500), "party chat is not hidden");
+        check(q.hides(dashes, 1600), "closing dash line hidden");
+        check(!q.hides(dashes, 1700), "a later dash line is shown");
+        q.asked(20000);
+        check(!q.hides("Party Members (2)", 24000), "nothing hidden after the window");
+        q.asked(30000);
+        check(q.hides("You are not currently in a party.", 30100), "not in a party reply hidden");
+        check(PartyServers.isHypixel("mc.hypixel.net:25565"), "hypixel host");
+        check(PartyServers.isHypixel("hypixel.net"), "bare hypixel host");
+        check(!PartyServers.isHypixel("nothypixel.net"), "lookalike host");
+        check(!PartyServers.isHypixel(null), "no address");
     }
 
     private static List<int[]> chests(int[]... c) {
