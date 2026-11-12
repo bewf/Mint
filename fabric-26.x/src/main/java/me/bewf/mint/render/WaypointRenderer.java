@@ -157,6 +157,7 @@ public final class WaypointRenderer {
                 String.format("Mint waypoints: fov %.1f (%s), options fov %d", fov, ViewInfo.fovNote, mc.options.fov().get()),
                 "camera: " + ViewInfo.cameraNote + ", bobbing: " + ViewInfo.bobNote,
                 String.format("view yaw %.1f pitch %.1f, sprinting %b, sneaking %b", yaw, pitch, mc.player.isSprinting(), mc.player.isShiftKeyDown()),
+                ResourceTracker.debugChest,
         };
         for (int i = 0; i < lines.length; i++) {
             drawText(g, mc.font, Component.literal(lines[i]), 4, 4 + i * 10, true);

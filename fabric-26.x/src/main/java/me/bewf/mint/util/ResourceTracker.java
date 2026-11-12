@@ -67,6 +67,9 @@ public class ResourceTracker {
     private static int lastEmeBase = 0;
 
     private static boolean wasEnderGui = false;
+
+    /** What the chest tracking saw last tick, for the debug readout. */
+    public static String debugChest = "no tick yet";
     private static int enderGuiWarmup = 0;
 
     // The server sends the contents of a chest a moment after the window opens. Until something shows up
@@ -440,6 +443,14 @@ public class ResourceTracker {
         emeEc = lastEmeBase;
 
         wasEnderGui = inEnderGui;
+
+        if (MintConfig.INSTANCE.waypointDebug) {
+            String title = openChestTitle(mc);
+            debugChest = "chest window: " + (title == null ? "none" : "\"" + title + "\"")
+                    + ", ender " + inEnderGui + " (loaded " + enderLoaded + "), team " + isTeamChestGuiOpen(mc)
+                    + " (loaded " + teamLoaded + "), ender i" + lastIronBase + " g" + lastGoldBase
+                    + " d" + lastDiaBase + " e" + lastEmeBase;
+        }
 
         boolean inTeamChestGui = isTeamChestGuiOpen(mc);
         if (inTeamChestGui && !wasTeamGui) {
