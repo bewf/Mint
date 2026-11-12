@@ -232,6 +232,14 @@ public class MintConfig extends Config {
     )
     public boolean waypointShadow = true;
 
+    @Slider(
+            title = "Waypoint View Adjust",
+            description = "Degrees added to the field of view the waypoints use. Only for labels that slide when you look up or down or sprint: change it until they stay on the chest. 0 is normal.",
+            category = "Debug",
+            min = -40f, max = 40f, step = 1f
+    )
+    public float waypointFovAdjust = 0f;
+
     @Checkbox(
             title = "Always Show HUD",
             description = "Mainly for debugging. If this is required for the HUD to appear, please open an issue on GitHub.",

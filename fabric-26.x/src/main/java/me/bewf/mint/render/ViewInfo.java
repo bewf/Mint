@@ -19,18 +19,30 @@ final class ViewInfo {
     private ViewInfo() {
     }
 
+    // What the last frame managed to read, for the waypoint debug line
+    static String fovNote = "not read yet";
+    static String cameraNote = "not read yet";
+    static String bobNote = "not read yet";
+
     /**
      * The sway of walking as {moveRight, moveUp, rollDegrees, pitchDegrees}, the way the game applies it
      * to the view, or null when view bobbing is off or cannot be read.
      */
     static double[] bob(Minecraft mc, float partial) {
         try {
-            if (mc.player == null || !bobbingOn(mc)) return null;
+            if (mc.player == null) return null;
+            if (!bobbingOn(mc)) {
+                bobNote = "off in options";
+                return null;
+            }
             float walk = number(mc.player, "walkDist");
             float walkOld = number(mc.player, "walkDistO");
             float bob = number(mc.player, "bob");
             float bobOld = number(mc.player, "oBob");
-            if (Float.isNaN(walk) || Float.isNaN(walkOld) || Float.isNaN(bob) || Float.isNaN(bobOld)) return null;
+            if (Float.isNaN(walk) || Float.isNaN(walkOld) || Float.isNaN(bob) || Float.isNaN(bobOld)) {
+                bobNote = "fields not found";
+                return null;
+            }
 
             double phase = -(walk + (walk - walkOld) * partial) * Math.PI;
             double strength = bobOld + (bob - bobOld) * partial;
@@ -43,9 +55,14 @@ final class ViewInfo {
                     Math.abs(Math.cos(phase - 0.2) * strength) * 5.0,
             };
             // Walking never moves the view by more than a fraction of a block or a few degrees
-            if (Math.abs(out[0]) > 1.0 || Math.abs(out[1]) > 1.0 || Math.abs(out[2]) > 20.0 || Math.abs(out[3]) > 30.0) return null;
+            if (Math.abs(out[0]) > 1.0 || Math.abs(out[1]) > 1.0 || Math.abs(out[2]) > 20.0 || Math.abs(out[3]) > 30.0) {
+                bobNote = "values out of range";
+                return null;
+            }
+            bobNote = String.format("ok, strength %.2f", strength);
             return out;
         } catch (Throwable t) {
+            bobNote = "error " + t;
             return null;
         }
     }
@@ -106,9 +123,15 @@ final class ViewInfo {
     static double[] camera(Minecraft mc) {
         try {
             Object renderer = gameRenderer(mc);
-            if (renderer == null) return null;
+            if (renderer == null) {
+                cameraNote = "game renderer not found";
+                return null;
+            }
             Object camera = mainCamera(renderer);
-            if (camera == null) return null;
+            if (camera == null) {
+                cameraNote = "camera not found";
+                return null;
+            }
 
             if (!cameraMembersSearched) {
                 cameraMembersSearched = true;
@@ -129,17 +152,28 @@ final class ViewInfo {
                 z = at.z;
             } else {
                 Object at = field(camera, "position");
-                if (!(at instanceof Vec3)) return null;
+                if (!(at instanceof Vec3)) {
+                    cameraNote = "position not found";
+                    return null;
+                }
                 x = ((Vec3) at).x;
                 y = ((Vec3) at).y;
                 z = ((Vec3) at).z;
             }
             float yaw = yawGetter != null ? ((Number) yawGetter.invoke(camera)).floatValue() : number(camera, "yRot");
             float pitch = pitchGetter != null ? ((Number) pitchGetter.invoke(camera)).floatValue() : number(camera, "xRot");
-            if (Float.isNaN(yaw) || Float.isNaN(pitch)) return null;
-            if (Double.isNaN(x) || Double.isNaN(y) || Double.isNaN(z)) return null;
+            if (Float.isNaN(yaw) || Float.isNaN(pitch)) {
+                cameraNote = "rotation not found";
+                return null;
+            }
+            if (Double.isNaN(x) || Double.isNaN(y) || Double.isNaN(z)) {
+                cameraNote = "position invalid";
+                return null;
+            }
+            cameraNote = "ok";
             return new double[]{x, y, z, yaw, pitch};
         } catch (Throwable t) {
+            cameraNote = "error " + t;
             return null;
         }
     }
@@ -151,9 +185,11 @@ final class ViewInfo {
     static double fov(Minecraft mc, float partial, double fallback) {
         try {
             Object renderer = gameRenderer(mc);
-            if (renderer == null) return fallback;
-            Object camera = mainCamera(renderer);
-            if (camera == null) return fallback;
+            Object camera = renderer == null ? null : mainCamera(renderer);
+            if (camera == null) {
+                fovNote = "options value, no camera";
+                return fallback;
+            }
 
             if (!fovTried) {
                 fovTried = true;
@@ -167,12 +203,21 @@ final class ViewInfo {
                     }
                 }
             }
-            if (fovMethod == null) return fallback;
+            if (fovMethod == null) {
+                fovNote = "options value, getFov not found";
+                return fallback;
+            }
 
             double fov = ((Number) fovMethod.invoke(renderer, camera, Float.valueOf(partial), Boolean.TRUE)).doubleValue();
-            return fov >= 10.0 && fov <= 170.0 ? fov : fallback;
+            if (fov >= 10.0 && fov <= 170.0) {
+                fovNote = "from the game";
+                return fov;
+            }
+            fovNote = "options value, game gave " + fov;
+            return fallback;
         } catch (Throwable t) {
             fovMethod = null;
+            fovNote = "options value, error " + t;
             return fallback;
         }
     }

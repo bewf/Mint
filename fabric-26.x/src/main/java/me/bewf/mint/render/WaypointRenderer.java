@@ -91,6 +91,8 @@ public final class WaypointRenderer {
         double[] bob = ViewInfo.bob(mc, partialTick);
         int width = mc.getWindow().getGuiScaledWidth();
         int height = mc.getWindow().getGuiScaledHeight();
+        if (cfg.waypointDebug) drawDebug(g, mc, fov, cam != null, bob != null, yaw, pitch);
+        fov = Math.max(10.0, Math.min(170.0, fov + cfg.waypointFovAdjust));
 
         int[] inventory = {ResourceTracker.ironInv, ResourceTracker.goldInv, ResourceTracker.diaInv, ResourceTracker.emeInv};
         List<WaypointLabel.Part> team = null;
@@ -143,6 +145,21 @@ public final class WaypointRenderer {
             float reachX = 60f * scale, reachY = 12f * scale;
             if (p[0] < -reachX || p[0] > width + reachX || p[1] < -reachY || p[1] > height + reachY + 10f * scale) continue;
             drawLabel(g, font, t, (float) p[0], (float) p[1], scale);
+        }
+    }
+
+    //? if >= 26.2 {
+    private static void drawDebug(GuiGraphicsExtractor g, Minecraft mc, double fov, boolean camera, boolean bob, double yaw, double pitch) {
+    //?} else {
+    /*private static void drawDebug(GuiGraphics g, Minecraft mc, double fov, boolean camera, boolean bob, double yaw, double pitch) {
+    *///?}
+        String[] lines = {
+                String.format("Mint waypoints: fov %.1f (%s), options fov %d", fov, ViewInfo.fovNote, mc.options.fov().get()),
+                "camera: " + ViewInfo.cameraNote + ", bobbing: " + ViewInfo.bobNote,
+                String.format("view yaw %.1f pitch %.1f, sprinting %b, sneaking %b", yaw, pitch, mc.player.isSprinting(), mc.player.isShiftKeyDown()),
+        };
+        for (int i = 0; i < lines.length; i++) {
+            drawText(g, mc.font, Component.literal(lines[i]), 4, 4 + i * 10, true);
         }
     }
 

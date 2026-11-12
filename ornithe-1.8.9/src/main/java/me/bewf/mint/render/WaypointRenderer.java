@@ -69,7 +69,7 @@ public final class WaypointRenderer {
         double ez = mc.player.prevZ + (mc.player.z - mc.player.prevZ) * partial;
         double yaw = mc.player.yaw;
         double pitch = mc.player.pitch;
-        double fov = mc.options.fov;
+        double fov = Math.max(10.0, Math.min(170.0, mc.options.fov + cfg.waypointFovAdjust));
 
         int width = Display.getWidth();
         int height = Display.getHeight();
