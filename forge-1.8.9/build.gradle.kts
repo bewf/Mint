@@ -1,20 +1,20 @@
 @file:Suppress("UnstableApiUsage", "Property_Name")
 
 import dev.deftu.gradle.utils.GameSide
-        import org.gradle.jvm.toolchain.JavaLanguageVersion
-        import org.gradle.jvm.tasks.Jar
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.tasks.Jar
 
-        plugins {
-            java
+plugins {
+    java
 
-            val dgtVersion = "2.35.0"
-            id("dev.deftu.gradle.tools") version(dgtVersion)
-            id("dev.deftu.gradle.tools.resources") version(dgtVersion)
-            id("dev.deftu.gradle.tools.bloom") version(dgtVersion)
-            id("dev.deftu.gradle.tools.shadow") version(dgtVersion)
-            id("dev.deftu.gradle.tools.minecraft.loom") version(dgtVersion)
-            id("dev.deftu.gradle.tools.minecraft.releases") version(dgtVersion)
-        }
+    val dgtVersion = "2.35.0"
+    id("dev.deftu.gradle.tools") version(dgtVersion)
+    id("dev.deftu.gradle.tools.resources") version(dgtVersion)
+    id("dev.deftu.gradle.tools.bloom") version(dgtVersion)
+    id("dev.deftu.gradle.tools.shadow") version(dgtVersion)
+    id("dev.deftu.gradle.tools.minecraft.loom") version(dgtVersion)
+    id("dev.deftu.gradle.tools.minecraft.releases") version(dgtVersion)
+}
 
 val modName = providers.gradleProperty("mod.name").get()
 val modId = providers.gradleProperty("mod.id").get()
@@ -25,6 +25,9 @@ group = modGroup
 version = modVersion
 
 toolkitLoomHelper {
+    // OneConfig V0 (cc.polyfrost) is declared in `dependencies` below. useOneConfig {} is the V1
+    // integration and asks for org.polyfrost.oneconfig artifacts that do not exist for legacy Forge.
+
     useDevAuth("1.2.1")
 
     disableRunConfigs(GameSide.SERVER)
@@ -37,20 +40,44 @@ toolkitLoomHelper {
 
 repositories {
     maven("https://repo.polyfrost.org/releases")
+    maven("https://repo.spongepowered.org/maven")
     maven("https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1")
 }
 
 dependencies {
-    // OneConfig V0
+    // Mixin API for compiling. OneConfig V0 ships Mixin at runtime only.
     compileOnly("org.spongepowered:mixin:0.7.11-SNAPSHOT")
     annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
 
+    // OneConfig V0: compile against it only. The launchwrapper loads the real one at runtime.
     compileOnly("cc.polyfrost:oneconfig-1.8.9-forge:0.2.2-alpha+")
 
+    // Launchwrapper tweaker: on the dev classpath so --tweakClass resolves, and bundled into the jar.
     implementation("cc.polyfrost:oneconfig-wrapper-launchwrapper:1.0.0-beta+")
     include("cc.polyfrost:oneconfig-wrapper-launchwrapper:1.0.0-beta+")
 
     runtimeOnly("me.djtheredstoner:DevAuth-forge-legacy:1.2.1")
+}
+
+// The code shared by every Mint module lives in ../shared. Bloom builds from a copy of the main source
+// set and ignores anything set with setSource, so the shared code has to be part of the source set.
+// It is copied into the build folder first, so Bloom sees ordinary files inside this project.
+// The sourcepath is a second route that does not depend on Bloom: javac finds whatever the Forge
+// code imports from the original folder.
+val sharedSources = file("../shared/src/main/java")
+val sharedCopy = layout.buildDirectory.dir("shared-src")
+
+val syncShared by tasks.registering(Sync::class) {
+    from(sharedSources)
+    into(sharedCopy)
+}
+
+sourceSets.named("main") {
+    java.srcDir(sharedCopy)
+}
+
+tasks.matching { it.name == "compileJava" || it.name.startsWith("bloom") }.configureEach {
+    dependsOn(syncShared)
 }
 
 java {
@@ -61,6 +88,7 @@ tasks.withType<JavaCompile>().configureEach {
     sourceCompatibility = "1.8"
     targetCompatibility = "1.8"
     options.encoding = "UTF-8"
+    options.sourcepath = project.files(sharedSources)
 }
 
 tasks.withType<JavaExec>().configureEach {
@@ -95,39 +123,7 @@ tasks.named<JavaExec>("runClient") {
     )
 }
 
-/* Version sync: gradle.properties -> generated Mint.java + mcmod.info */
-
-val generatedDir = layout.buildDirectory.dir("generated/sources/versionedMint")
-
-val generateVersionedMint = tasks.register<Copy>("generateVersionedMint") {
-    from("src/main/java/me/bewf/mint/Mint.java")
-    into(generatedDir.map { it.dir("me/bewf/mint") })
-
-    filteringCharset = "UTF-8"
-
-    filter { line: String ->
-        line
-            .replace("@MOD_NAME@", modName)
-            .replace("@MOD_ID@", modId)
-            .replace("@MOD_VERSION@", modVersion)
-    }
-}
-
-val mainJavaWithoutMint = fileTree("src/main/java") {
-    include("**/*.java")
-    exclude("me/bewf/mint/Mint.java")
-}
-
-// Shared code used by every Mint module.
-val sharedJava = fileTree("../shared/src/main/java") {
-    include("**/*.java")
-}
-
-tasks.named<JavaCompile>("compileJava") {
-    dependsOn(generateVersionedMint)
-    setSource(mainJavaWithoutMint + fileTree(generatedDir) + sharedJava)
-}
-
+// Bloom puts the mod version into Mint.java in place of @MOD_VERSION@.
 tasks.processResources {
     inputs.property("mod_name", modName)
     inputs.property("mod_id", modId)
