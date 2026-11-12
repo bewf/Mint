@@ -23,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -111,10 +112,25 @@ public final class WaypointRenderer {
         }
 
         Font font = mc.font;
-        Target[] targets = {
-                new Target(ResourceTracker.homeChest(), team, HudColors.teamRgb()),
-                new Target(ResourceTracker.homeEnderChest(), ender, HudColors.enderRgb()),
-        };
+        List<Target> targets = new ArrayList<>();
+        targets.add(new Target(ResourceTracker.homeChest(), team, HudColors.teamRgb()));
+        targets.add(new Target(ResourceTracker.homeEnderChest(), ender, HudColors.enderRgb()));
+        if (ender != null) {
+            // Every Ender Chest close by opens the same inventory, so it gets the same label
+            for (BlockPos near : ResourceTracker.nearbyEnderChests()) {
+                if (!near.equals(ResourceTracker.homeEnderChest())) targets.add(new Target(near, ender, HudColors.enderRgb()));
+            }
+        }
+        if (cfg.otherChestWaypoints && cfg.teamChestWaypoint) {
+            BlockPos home = ResourceTracker.homeChest();
+            boolean[] shown = {cfg.teamWaypointIron, cfg.teamWaypointGold, cfg.teamWaypointDiamond, cfg.teamWaypointEmerald};
+            for (ResourceTracker.OtherChest other : ResourceTracker.otherChests()) {
+                if (home != null && other.pos.distManhattan(home) <= 1) continue;
+                targets.add(new Target(other.pos,
+                        WaypointLabel.parts(other.counts, inventory, shown, cfg.teamChestWaypointAmount),
+                        HudColors.teamRgb()));
+            }
+        }
 
         for (Target t : targets) {
             if (t.pos == null || t.parts == null || t.parts.isEmpty()) continue;

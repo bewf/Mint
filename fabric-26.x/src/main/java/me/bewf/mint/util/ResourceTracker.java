@@ -115,6 +115,27 @@ public class ResourceTracker {
     private static boolean wasTeamGui = false;
     private static int teamChestGuiWarmup = 0;
 
+    // Chests other than the home team chest. Each keeps its own contents, from looking inside it or from
+    // the total the server reports after a punch deposit. They only feed the waypoints, never the HUD.
+    public static final class OtherChest {
+        public final BlockPos pos;
+        public final int[] counts = new int[4];
+
+        OtherChest(BlockPos pos) {
+            this.pos = pos;
+        }
+    }
+
+    private static final List<OtherChest> otherChests = new ArrayList<>();
+
+    // Every Ender Chest close to the player. They all open the same inventory, so each one gets the same label.
+    public static final int NEARBY_ENDER_BLOCKS = 10;
+    private static final int NEARBY_SCAN_TICKS = 10;
+    // Chests this close are certainly loaded, so a missing block there means the chest is gone
+    private static final int PRUNE_BLOCKS = 24;
+    private static List<BlockPos> nearbyEnders = new ArrayList<>();
+    private static int nearbyScanTicks = 0;
+
     private static final Pattern TOTAL_NUMBER_PATTERN = Pattern.compile("\\((\\d+)");
     private static final Pattern[] MATERIAL_PATTERNS = {
             Pattern.compile("iron", Pattern.CASE_INSENSITIVE),
@@ -148,6 +169,64 @@ public class ResourceTracker {
 
     public static BlockPos homeEnderChest() {
         return enderChestPos;
+    }
+
+    /** Ender Chests within {@link #NEARBY_ENDER_BLOCKS} blocks of the player. */
+    public static List<BlockPos> nearbyEnderChests() {
+        return nearbyEnders;
+    }
+
+    /** Chests other than the home team chest that were opened or deposited into, with what they held. */
+    public static List<OtherChest> otherChests() {
+        return otherChests;
+    }
+
+    private static OtherChest otherChestAt(BlockPos pos) {
+        for (OtherChest c : otherChests) {
+            if (c.pos.distManhattan(pos) <= 1) return c;
+        }
+        OtherChest created = new OtherChest(pos.immutable());
+        otherChests.add(created);
+        return created;
+    }
+
+    private static void rememberOtherChest(BlockPos pos, Counts c) {
+        if (pos == null) return;
+        OtherChest chest = otherChestAt(pos);
+        chest.counts[Delta.IRON] = c.iron;
+        chest.counts[Delta.GOLD] = c.gold;
+        chest.counts[Delta.DIAMOND] = c.diamond;
+        chest.counts[Delta.EMERALD] = c.emerald;
+    }
+
+    private static void rememberOtherTotal(BlockPos pos, int resource, int total) {
+        if (pos == null) return;
+        otherChestAt(pos).counts[resource] = total;
+    }
+
+    /** Finds Ender Chests around the player and forgets other chests that were broken. */
+    private static void scanSurroundings(Minecraft mc) {
+        BlockPos here = mc.player.blockPosition();
+        List<BlockPos> found = new ArrayList<>();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int r = NEARBY_ENDER_BLOCKS;
+        for (int x = here.getX() - r; x <= here.getX() + r; x++) {
+            for (int z = here.getZ() - r; z <= here.getZ() + r; z++) {
+                for (int y = here.getY() - r; y <= here.getY() + r; y++) {
+                    if (mc.level.getBlockState(cursor.set(x, y, z)).getBlock() != Blocks.ENDER_CHEST) continue;
+                    int dx = x - here.getX(), dy = y - here.getY(), dz = z - here.getZ();
+                    if (dx * dx + dy * dy + dz * dz <= r * r) found.add(new BlockPos(x, y, z));
+                }
+            }
+        }
+        nearbyEnders = found;
+
+        Iterator<OtherChest> it = otherChests.iterator();
+        while (it.hasNext()) {
+            OtherChest c = it.next();
+            if (c.pos.distManhattan(here) > PRUNE_BLOCKS) continue;
+            if (mc.level.getBlockState(c.pos).getBlock() != Blocks.CHEST) it.remove();
+        }
     }
 
     public void register() {
@@ -216,38 +295,35 @@ public class ResourceTracker {
 
                 confirmHomeFromServer();
 
-                // A deposit into some other chest reports that chest's total, which must not
-                // replace the numbers of the home team chest
-                if (!acceptTeamChest(lastChestPos)) return;
-
                 int total = Integer.parseInt(totalMatcher.group(1));
                 long now = System.currentTimeMillis();
 
                 int resource = -1;
-                if (MATERIAL_PATTERNS[0].matcher(msg).find()) {
-                    teamChestIron = total;
-                    resource = Delta.IRON;
-                } else if (MATERIAL_PATTERNS[1].matcher(msg).find()) {
-                    teamChestGold = total;
-                    resource = Delta.GOLD;
-                } else if (MATERIAL_PATTERNS[2].matcher(msg).find()) {
-                    teamChestDiamond = total;
-                    resource = Delta.DIAMOND;
-                } else if (MATERIAL_PATTERNS[3].matcher(msg).find()) {
-                    teamChestEmerald = total;
-                    resource = Delta.EMERALD;
+                if (MATERIAL_PATTERNS[0].matcher(msg).find()) resource = Delta.IRON;
+                else if (MATERIAL_PATTERNS[1].matcher(msg).find()) resource = Delta.GOLD;
+                else if (MATERIAL_PATTERNS[2].matcher(msg).find()) resource = Delta.DIAMOND;
+                else if (MATERIAL_PATTERNS[3].matcher(msg).find()) resource = Delta.EMERALD;
+                if (resource < 0) return;
+
+                // A deposit into some other chest reports that chest's total, which must not
+                // replace the numbers of the home team chest. It only feeds that chest's waypoint.
+                if (!acceptTeamChest(lastChestPos)) {
+                    rememberOtherTotal(lastChestPos, resource, total);
+                    return;
                 }
 
-                if (resource >= 0) {
-                    ledger.total(resource, total, now);
+                if (resource == Delta.IRON) teamChestIron = total;
+                else if (resource == Delta.GOLD) teamChestGold = total;
+                else if (resource == Delta.DIAMOND) teamChestDiamond = total;
+                else teamChestEmerald = total;
+                ledger.total(resource, total, now);
 
-                    // A punch deposit is a change the rest of the party wants to hear about
-                    int deposited = TeamChestMessage.depositAmount(msg);
-                    if (deposited > 0) {
-                        Delta change = new Delta();
-                        change.add(resource, deposited);
-                        TeamChestSync.record(change);
-                    }
+                // A punch deposit is a change the rest of the party wants to hear about
+                int deposited = TeamChestMessage.depositAmount(msg);
+                if (deposited > 0) {
+                    Delta change = new Delta();
+                    change.add(resource, deposited);
+                    TeamChestSync.record(change);
                 }
             }
         }
@@ -392,8 +468,17 @@ public class ResourceTracker {
             ledger.look(teamCounts.iron, teamCounts.gold, teamCounts.diamond, teamCounts.emerald, System.currentTimeMillis());
             homeGuiOpen = true;
             trackOwnChanges(invNow);
+        } else if (inTeamChestGui && teamLoaded && lastChestPos != null) {
+            // Some other chest: remembered for its own waypoint only
+            rememberOtherChest(lastChestPos, teamCounts);
+            homeGuiOpen = false;
         } else {
             homeGuiOpen = false;
+        }
+
+        if (++nearbyScanTicks >= NEARBY_SCAN_TICKS) {
+            nearbyScanTicks = 0;
+            scanSurroundings(mc);
         }
 
         if (!inTeamChestGui) {
@@ -734,6 +819,9 @@ public class ResourceTracker {
 
         homeChestPos = null;
         enderChestPos = null;
+        otherChests.clear();
+        nearbyEnders = new ArrayList<>();
+        nearbyScanTicks = 0;
         homeConfirmed = false;
         spawnPos = null;
         lastTickPos = null;

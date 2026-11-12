@@ -54,24 +54,38 @@ public class WaypointRenderer {
         double vz = view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partialTicks;
 
         int[] inventory = {ResourceTracker.ironInv, ResourceTracker.goldInv, ResourceTracker.diaInv, ResourceTracker.emeInv};
+        int teamRgb = rgb(cfg.teamChestColor, 0x55AAFF);
+        boolean[] teamShown = {cfg.teamWaypointIron, cfg.teamWaypointGold, cfg.teamWaypointDiamond, cfg.teamWaypointEmerald};
         if (cfg.teamChestWaypoint) {
             draw(mc, ResourceTracker.homeChest(), vx, vy, vz,
                     WaypointLabel.parts(
                             new int[]{ResourceTracker.teamChestIron, ResourceTracker.teamChestGold,
                                     ResourceTracker.teamChestDiamond, ResourceTracker.teamChestEmerald},
-                            inventory,
-                            new boolean[]{cfg.teamWaypointIron, cfg.teamWaypointGold, cfg.teamWaypointDiamond, cfg.teamWaypointEmerald},
-                            cfg.teamChestWaypointAmount),
-                    rgb(cfg.teamChestColor, 0x55AAFF));
+                            inventory, teamShown, cfg.teamChestWaypointAmount),
+                    teamRgb);
         }
         if (cfg.enderChestWaypoint) {
-            draw(mc, ResourceTracker.homeEnderChest(), vx, vy, vz,
-                    WaypointLabel.parts(
-                            new int[]{ResourceTracker.ironEc, ResourceTracker.goldEc, ResourceTracker.diaEc, ResourceTracker.emeEc},
-                            inventory,
-                            new boolean[]{cfg.enderWaypointIron, cfg.enderWaypointGold, cfg.enderWaypointDiamond, cfg.enderWaypointEmerald},
-                            cfg.enderChestWaypointAmount),
-                    rgb(cfg.enderChestColor, 0xBE3FFF));
+            List<WaypointLabel.Part> ender = WaypointLabel.parts(
+                    new int[]{ResourceTracker.ironEc, ResourceTracker.goldEc, ResourceTracker.diaEc, ResourceTracker.emeEc},
+                    inventory,
+                    new boolean[]{cfg.enderWaypointIron, cfg.enderWaypointGold, cfg.enderWaypointDiamond, cfg.enderWaypointEmerald},
+                    cfg.enderChestWaypointAmount);
+            int enderRgb = rgb(cfg.enderChestColor, 0xBE3FFF);
+            BlockPos homeEnder = ResourceTracker.homeEnderChest();
+            draw(mc, homeEnder, vx, vy, vz, ender, enderRgb);
+            // Every Ender Chest close by opens the same inventory, so it gets the same label
+            for (BlockPos near : ResourceTracker.nearbyEnderChests()) {
+                if (!near.equals(homeEnder)) draw(mc, near, vx, vy, vz, ender, enderRgb);
+            }
+        }
+        if (cfg.teamChestWaypoint && cfg.otherChestWaypoints) {
+            BlockPos home = ResourceTracker.homeChest();
+            for (ResourceTracker.OtherChest other : ResourceTracker.otherChests()) {
+                if (home != null && Math.abs(other.pos.getX() - home.getX()) + Math.abs(other.pos.getY() - home.getY())
+                        + Math.abs(other.pos.getZ() - home.getZ()) <= 1) continue;
+                draw(mc, other.pos, vx, vy, vz,
+                        WaypointLabel.parts(other.counts, inventory, teamShown, cfg.teamChestWaypointAmount), teamRgb);
+            }
         }
     }
 

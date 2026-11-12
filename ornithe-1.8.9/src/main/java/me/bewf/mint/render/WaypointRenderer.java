@@ -16,6 +16,7 @@ import org.polyfrost.oneconfig.api.event.v1.EventManager;
 import org.polyfrost.oneconfig.api.event.v1.events.FramebufferRenderEvent;
 import org.polyfrost.oneconfig.api.event.v1.events.TickEvent;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -94,10 +95,26 @@ public final class WaypointRenderer {
                     cfg.enderChestWaypointAmount);
         }
 
-        Target[] targets = {
-                new Target(ResourceTracker.homeChest(), team, hudRgb(true)),
-                new Target(ResourceTracker.homeEnderChest(), ender, hudRgb(false)),
-        };
+        List<Target> targets = new ArrayList<Target>();
+        targets.add(new Target(ResourceTracker.homeChest(), team, hudRgb(true)));
+        targets.add(new Target(ResourceTracker.homeEnderChest(), ender, hudRgb(false)));
+        if (ender != null) {
+            // Every Ender Chest close by opens the same inventory, so it gets the same label
+            for (BlockPos near : ResourceTracker.nearbyEnderChests()) {
+                if (!near.equals(ResourceTracker.homeEnderChest())) targets.add(new Target(near, ender, hudRgb(false)));
+            }
+        }
+        if (cfg.otherChestWaypoints && cfg.teamChestWaypoint) {
+            BlockPos home = ResourceTracker.homeChest();
+            boolean[] shown = {cfg.teamWaypointIron, cfg.teamWaypointGold, cfg.teamWaypointDiamond, cfg.teamWaypointEmerald};
+            for (ResourceTracker.OtherChest other : ResourceTracker.otherChests()) {
+                if (home != null && Math.abs(other.pos.getX() - home.getX()) + Math.abs(other.pos.getY() - home.getY())
+                        + Math.abs(other.pos.getZ() - home.getZ()) <= 1) continue;
+                targets.add(new Target(other.pos,
+                        WaypointLabel.parts(other.counts, inventory, shown, cfg.teamChestWaypointAmount),
+                        hudRgb(true)));
+            }
+        }
 
         GlState state = GlState.begin(width, height);
         try {

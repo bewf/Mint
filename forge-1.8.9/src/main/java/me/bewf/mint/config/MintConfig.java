@@ -269,6 +269,14 @@ public class MintConfig extends Config {
     public boolean teamWaypointEmerald = true;
 
     @Checkbox(
+            name = "Other Chest Waypoints",
+            description = "Also show a label above other chests you have opened, each with its own contents. The HUD still only follows your own team chest.",
+            category = "Team Chest",
+            subcategory = "Team Chest Waypoint"
+    )
+    public boolean otherChestWaypoints = true;
+
+    @Checkbox(
             name = "Ender Chest Waypoint",
             description = "Show a small label above your Ender Chest with what is inside it.",
             category = "Team Chest",
