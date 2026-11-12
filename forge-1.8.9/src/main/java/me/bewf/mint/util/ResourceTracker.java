@@ -100,6 +100,18 @@ public class ResourceTracker {
     private static boolean wasEnderGui = false;
     private static int enderGuiWarmup = 0;
 
+    // The server sends the contents of a chest a moment after the window opens. Until something shows up
+    // (or a second has passed) an empty window is not read as an empty chest.
+    private static final int LOAD_WAIT_TICKS = 20;
+    private static int enderOpenTicks = 0;
+    private static boolean enderLoaded = false;
+    private static int teamOpenTicks = 0;
+    private static boolean teamLoaded = false;
+
+    // The sidebar can go missing for a moment, so the numbers are only wiped after it has been gone a while
+    private static final int INACTIVE_RESET_TICKS = 200;
+    private static int inactiveTicks = 0;
+
     public static int teamChestInteractionWarmup = 0;
     private static boolean wasTeamGui = false;
     private static int teamChestGuiWarmup = 0;
@@ -305,9 +317,10 @@ public class ResourceTracker {
         active = BedwarsDetector.isInHypixelBedwars();
 
         if (!active && !debug) {
-            resetAll();
+            if (++inactiveTicks >= INACTIVE_RESET_TICKS) resetAll();
             return;
         }
+        inactiveTicks = 0;
 
         ticksSinceChestTouch++;
         ticksSinceEnderTouch++;
@@ -326,16 +339,23 @@ public class ResourceTracker {
 
         if (inEnderGui && !wasEnderGui) {
             enderGuiWarmup = 2;
+            enderOpenTicks = 0;
+            enderLoaded = false;
         }
 
         Counts chestCounts =
                 inEnderGui ? countOpenEnderChestContainer(mc)
                         : new Counts();
 
+        if (inEnderGui) {
+            enderOpenTicks++;
+            if (!enderLoaded && (chestHasItems(mc) || enderOpenTicks >= LOAD_WAIT_TICKS)) enderLoaded = true;
+        }
+
         if (enderGuiWarmup > 0) {
             enderGuiWarmup--;
         }
-        else if (inEnderGui) {
+        else if (inEnderGui && enderLoaded) {
             lastIronBase = chestCounts.iron;
             lastGoldBase = chestCounts.gold;
             lastDiaBase = chestCounts.diamond;
@@ -353,6 +373,12 @@ public class ResourceTracker {
         if (inTeamChestGui && !wasTeamGui) {
             // Give the server a moment to send the chest contents before reading them
             teamChestGuiWarmup = 2;
+            teamOpenTicks = 0;
+            teamLoaded = false;
+        }
+        if (inTeamChestGui) {
+            teamOpenTicks++;
+            if (!teamLoaded && (chestHasItems(mc) || teamOpenTicks >= LOAD_WAIT_TICKS)) teamLoaded = true;
         }
         if (inTeamChestGui) {
             teamChestInteractionWarmup = 100;
@@ -363,7 +389,7 @@ public class ResourceTracker {
         if (teamChestGuiWarmup > 0) {
             teamChestGuiWarmup--;
         }
-        else if (inTeamChestGui && acceptTeamChest(lastChestPos)) {
+        else if (inTeamChestGui && teamLoaded && acceptTeamChest(lastChestPos)) {
             teamChestIron = teamCounts.iron;
             teamChestGold = teamCounts.gold;
             teamChestDiamond = teamCounts.diamond;
@@ -624,6 +650,17 @@ public class ResourceTracker {
         return !name.contains("ender") && (name.contains("chest") || openedChestBlock());
     }
 
+    /** True when any slot of the open chest window holds an item, so the server has sent its contents. */
+    private boolean chestHasItems(Minecraft mc) {
+        Container container = mc.thePlayer.openContainer;
+        if (!(container instanceof ContainerChest)) return false;
+        IInventory lower = ((ContainerChest) container).getLowerChestInventory();
+        for (int i = 0; i < lower.getSizeInventory(); i++) {
+            if (lower.getStackInSlot(i) != null) return true;
+        }
+        return false;
+    }
+
     private Counts countOpenEnderChestContainer(
             Minecraft mc
     ) {
@@ -811,6 +848,10 @@ public class ResourceTracker {
 
         wasEnderGui = false;
         enderGuiWarmup = 0;
+        enderOpenTicks = 0;
+        enderLoaded = false;
+        teamOpenTicks = 0;
+        teamLoaded = false;
 
         teamChestInteractionWarmup = 0;
         wasTeamGui = false;
