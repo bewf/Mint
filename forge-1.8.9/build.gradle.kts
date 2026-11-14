@@ -117,10 +117,7 @@ configurations.all {
 
 tasks.named<JavaExec>("runClient") {
     args("--tweakClass", "cc.polyfrost.oneconfig.loader.stage0.LaunchWrapperTweaker")
-    jvmArgs(
-        "-Ddevauth.enabled=true",
-        "-Ddevauth.account=alt"
-    )
+    jvmArgs("-Ddevauth.enabled=true")
 }
 
 // Bloom puts the mod version into Mint.java in place of @MOD_VERSION@.
