@@ -31,9 +31,13 @@ public final class TeamChestMessage {
             "^\\[Mint \\| Team Chest: (" + ITEM + "(?:, " + ITEM + "){0,3})(?: #(\\d{1,2}))?\\]$");
     private static final Pattern ITEM_PATTERN = Pattern.compile("([+-])(\\d{1,4}) (iron|gold|dia|em)");
 
-    // "Party > [MVP+] name: text" on Hypixel, "[Party] name: text" and similar elsewhere, colour codes already removed
-    private static final Pattern PARTY_LINE = Pattern.compile(
-            "^\\[?Party\\]?(?: ?[>|:\u00BB-])? ?(?:\\[[^\\]]+\\] ?)*([A-Za-z0-9_]{1,16}): (.*)$", Pattern.CASE_INSENSITIVE);
+    // Party chat looks like "Party > [MVP+] name: text" on Hypixel and "[Party] name: text" elsewhere, with any number of
+    // ranks, titles or tags around the name ("Party > [MVP+] [Lord] Lord and Saviour bewf: text"). The update itself
+    // has a fixed shape at the end of the line, so it is found first and everything before it is only checked for
+    // "Party" and the sender name, which is the last word before the colon.
+    private static final Pattern PAYLOAD = Pattern.compile("(\\[Mint \\| Team Chest: [^\\]\\r\\n]*\\])\\s*$");
+    private static final Pattern PARTY_START = Pattern.compile("^[\\[\\]\\d: ]{0,12}?(?:\\[Party\\]|\\bParty ?[>|\u00BB-])", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SENDER = Pattern.compile("(?<![A-Za-z0-9_])([A-Za-z0-9_]{1,16})(?: \\[[^\\]]*\\])*:\\s*$");
 
     public static final class Parsed {
         public final Delta delta;
@@ -94,12 +98,24 @@ public final class TeamChestMessage {
         return new Parsed(d, seq);
     }
 
-    /** Splits a party chat line into sender and text, or returns null when it is not party chat. */
+    /**
+     * Splits a party chat line carrying a Mint update into sender and update text. Returns null when the line is
+     * not party chat or carries no update. The sender is empty when the name cannot be read.
+     */
     public static PartyLine party(String stripped) {
         if (stripped == null) return null;
-        Matcher m = PARTY_LINE.matcher(stripped);
-        if (!m.matches()) return null;
-        return new PartyLine(m.group(1), m.group(2));
+        Matcher payload = PAYLOAD.matcher(stripped);
+        if (!payload.find()) return null;
+
+        String prefix = stripped.substring(0, payload.start());
+        Matcher start = PARTY_START.matcher(prefix);
+        if (!start.find()) return null;
+        // Anything typed before the update would make it a normal sentence, not a Mint message
+        String afterParty = prefix.substring(start.end());
+        if (afterParty.indexOf(':') != afterParty.lastIndexOf(':')) return null;
+
+        Matcher name = SENDER.matcher(prefix);
+        return new PartyLine(name.find() ? name.group(1) : "", payload.group(1));
     }
 
     // "Deposited x24 Iron Ingot into Team Chest! (24 Total)", the line Hypixel prints after a punch deposit
@@ -111,6 +127,40 @@ public final class TeamChestMessage {
         Matcher m = DEPOSIT.matcher(stripped.trim());
         if (!m.find()) return 0;
         return Integer.parseInt(m.group(1));
+    }
+
+    // "QUICK DEPOSIT! Chest now holds: 20 Iron Ingots, 2 Golden Ingots.", printed by servers that deposit on a click
+    private static final Pattern HOLDS = Pattern.compile(
+            "^(?:QUICK DEPOSIT!?\\s*)?Chest now holds:\\s*(.+?)\\.?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern HOLD_ITEM = Pattern.compile("(\\d[\\d,]*)\\s+([A-Za-z ]+)");
+
+    /**
+     * What a "Chest now holds" line says the chest contains, indexed like {@link Delta}. A resource the
+     * line does not list is -1. Returns null when the line is not one of these or lists none of the four.
+     */
+    public static int[] holdings(String stripped) {
+        if (stripped == null) return null;
+        Matcher m = HOLDS.matcher(stripped.trim());
+        if (!m.matches()) return null;
+
+        int[] out = {-1, -1, -1, -1};
+        boolean any = false;
+        Matcher items = HOLD_ITEM.matcher(m.group(1));
+        while (items.find()) {
+            String name = items.group(2).toLowerCase();
+            int r = name.contains("iron") ? Delta.IRON
+                    : name.contains("gold") ? Delta.GOLD
+                    : name.contains("diamond") ? Delta.DIAMOND
+                    : name.contains("emerald") ? Delta.EMERALD : -1;
+            if (r < 0) continue;
+            try {
+                out[r] = Integer.parseInt(items.group(1).replace(",", ""));
+                any = true;
+            } catch (NumberFormatException e) {
+                // a number too large to be a chest count is ignored
+            }
+        }
+        return any ? out : null;
     }
 
     private static int indexOf(String tag) {

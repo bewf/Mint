@@ -37,7 +37,7 @@ public final class TeamChestSync {
     }
 
     // A burst of punches leaves as one message after half a second, closing the chest sends right away, and two messages are never closer than a second
-    private static final ChestBuffer BUFFER = new ChestBuffer(500L, 1000L);
+    private static final ChestBuffer BUFFER = new ChestBuffer(600L, 2500L, 1000L);
 
     private static PartyState party = PartyState.UNKNOWN;
     private static final PartyQuery QUERY = new PartyQuery();

@@ -26,6 +26,7 @@ public final class SyncSelfTest {
         message();
         party();
         buffer();
+        sliding();
         ledger();
         partyState();
         partyQuery();
@@ -80,17 +81,41 @@ public final class SyncSelfTest {
     private static void party() {
         TeamChestMessage.PartyLine l = TeamChestMessage.party("Party > [MVP+] bewf: [Mint | Team Chest: +1 iron]");
         check(l != null && l.sender.equals("bewf") && l.body.equals("[Mint | Team Chest: +1 iron]"), "ranked sender");
-        l = TeamChestMessage.party("Party > bewf: hi");
-        check(l != null && l.sender.equals("bewf"), "unranked sender");
-        l = TeamChestMessage.party("Party > [MVP++] a_b1: x: y");
-        check(l != null && l.sender.equals("a_b1") && l.body.equals("x: y"), "colon in text");
-        check(TeamChestMessage.party("Guild > bewf: hi") == null, "guild chat is not party chat");
-        check(TeamChestMessage.party("[MVP+] bewf: Party > fake: hi") == null, "spoofed prefix inside normal chat");
-        l = TeamChestMessage.party("[Party] bewf: [Mint | Team Chest: +1 iron]");
-        check(l != null && l.sender.equals("bewf") && l.body.startsWith("[Mint"), "bracket party prefix of another server");
-        l = TeamChestMessage.party("Party | [Rank] bewf: hi");
-        check(l != null && l.sender.equals("bewf"), "bar party prefix of another server");
-        check(TeamChestMessage.party("[MVP+] Party: [Mint | Team Chest: +1 iron]") == null, "a player called Party in normal chat");
+        String u = "[Mint | Team Chest: +9 iron]";
+        String[] lines = {
+            "Party > bewf: " + u,
+            "Party > [MVP++] bewf: " + u,
+            "Party > [MVP+] Lord and Saviour bewf: " + u,
+            "Party > [VIP] [Party Animal] [Lord] bewf: " + u,
+            "Party > [YOUTUBE] bewf: " + u,
+            "Party > [MVP+] bewf [TAG]: " + u,
+            "Party >  [MVP+] bewf:   " + u + "  ",
+            "[12:30] Party > [MVP+] bewf: " + u,
+            "[Party] bewf: " + u,
+            "Party | [Rank] bewf: " + u,
+            "Party \u00BB [Rank] bewf: " + u,
+        };
+        for (String line : lines) {
+            l = TeamChestMessage.party(line);
+            check(l != null && l.sender.equals("bewf") && l.body.equals(u), "party line: " + line);
+        }
+        l = TeamChestMessage.party("Party > [MVP+] a_b1: " + u);
+        check(l != null && l.sender.equals("a_b1"), "underscore and digit in name");
+        check(TeamChestMessage.party("Party > bewf: hi") == null, "party chat without an update");
+        check(TeamChestMessage.party("Guild > bewf: " + u) == null, "guild chat is not party chat");
+        check(TeamChestMessage.party("[MVP+] bewf: Party > fake: " + u) == null, "spoofed prefix inside normal chat");
+        check(TeamChestMessage.party("[MVP+] Party: " + u) == null, "a player called Party in normal chat");
+        check(TeamChestMessage.party("Party > Steve: hello there: " + u) == null, "text before the update");
+        check(TeamChestMessage.party("Party > bewf: " + u + " lol") == null, "text after the update");
+        l = TeamChestMessage.party("Party > " + u);
+        check(l != null && l.sender.isEmpty(), "unreadable name still gives the update");
+
+        int[] held = TeamChestMessage.holdings("QUICK DEPOSIT! Chest now holds: 20 Iron Ingots, 2 Golden Ingots.");
+        check(held != null && held[Delta.IRON] == 20 && held[Delta.GOLD] == 2 && held[Delta.DIAMOND] == -1, "chest now holds line");
+        held = TeamChestMessage.holdings("Chest now holds: 1,204 Iron Ingots, 3 Diamonds, 7 Emeralds");
+        check(held != null && held[Delta.IRON] == 1204 && held[Delta.DIAMOND] == 3 && held[Delta.EMERALD] == 7, "holds with commas and more items");
+        check(TeamChestMessage.holdings("[MVP+] bewf: Chest now holds: 99 Iron Ingots") == null, "player chat is not a holds line");
+        check(TeamChestMessage.holdings("Chest now holds: 4 Oak Logs") == null, "nothing tracked");
     }
 
     private static void buffer() {
@@ -126,8 +151,25 @@ public final class SyncSelfTest {
         check(!c.hasPending(), "cancelled buffer is empty");
     }
 
+    private static void sliding() {
+        ChestBuffer b = new ChestBuffer(600, 2500, 1000);
+        b.add(new Delta(2, 0, 0, 0), 0);
+        check(b.poll(500) == null, "still collecting");
+        b.add(new Delta(0, 1, 0, 0), 900);
+        check(b.poll(1400) == null, "a later change extends the wait");
+        eq(b.poll(1500), new Delta(2, 1, 0, 0), "one message after things go quiet");
+        ChestBuffer endless = new ChestBuffer(600, 2500, 1000);
+        for (long t = 0; t <= 2400; t += 300) endless.add(new Delta(1, 0, 0, 0), t);
+        check(endless.poll(2400) == null, "not before the cap");
+        check(endless.poll(2500) != null, "the cap forces it out");
+    }
+
     private static void ledger() {
         TeamChestLedger l = new TeamChestLedger();
+        check(!l.isKnown(Delta.IRON), "nothing known at first");
+        l.total(Delta.IRON, 5, 0);
+        check(l.isKnown(Delta.IRON) && !l.isKnown(Delta.GOLD), "a total makes one resource known");
+        l.reset();
         // a fresh game starts with an empty chest, so teammates' updates apply straight away
         check(l.applyRemote(new Delta(10, 0, 0, 0), 10_000, false), "applies at game start");
         eq(l.get(Delta.IRON), 10, "iron after update");

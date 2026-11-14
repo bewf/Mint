@@ -15,10 +15,16 @@ public final class TeamChestLedger {
     public static final long RACE_MS = 3500;
 
     private final int[] counts = new int[Delta.COUNT];
+    private final boolean[] known = new boolean[Delta.COUNT];
     private long lastLookMs = Long.MIN_VALUE / 2;
 
     public int get(int resource) {
         return counts[resource];
+    }
+
+    /** True once the chest was looked at or the server printed a total for this resource. */
+    public boolean isKnown(int resource) {
+        return known[resource];
     }
 
     /** The player looked at the whole chest. */
@@ -27,12 +33,14 @@ public final class TeamChestLedger {
         counts[Delta.GOLD] = gold;
         counts[Delta.DIAMOND] = diamond;
         counts[Delta.EMERALD] = emerald;
+        for (int r = 0; r < Delta.COUNT; r++) known[r] = true;
         lastLookMs = now;
     }
 
     /** The server told the player the new total of one resource. */
     public void total(int resource, int total, long now) {
         counts[resource] = Math.max(0, total);
+        known[resource] = true;
         lastLookMs = now;
     }
 
@@ -47,7 +55,10 @@ public final class TeamChestLedger {
     }
 
     public void reset() {
-        for (int r = 0; r < Delta.COUNT; r++) counts[r] = 0;
+        for (int r = 0; r < Delta.COUNT; r++) {
+            counts[r] = 0;
+            known[r] = false;
+        }
         lastLookMs = Long.MIN_VALUE / 2;
     }
 }
