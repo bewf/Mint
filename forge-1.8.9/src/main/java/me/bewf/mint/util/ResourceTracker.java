@@ -150,6 +150,7 @@ public class ResourceTracker {
     private static class PendingDeposit {
         Item item;
         int inventorySnapshot;
+        int age = 0;
 
         PendingDeposit(Item item, int snapshot) {
             this.item = item;
@@ -262,17 +263,65 @@ public class ResourceTracker {
 
         if (block == Blocks.ender_chest) {
             ticksSinceEnderTouch = 0;
-            if (!punch) return;
-            if (held == null || !isTrackedItem(held.getItem())) return;
-            pendingDeposits.add(new PendingDeposit(
-                    held.getItem(),
-                    countItemInInventory(mc, held.getItem())
-            ));
+            // Hypixel only sends the item in hand. Some servers send every material on a punch.
+            startEnderDeposit(mc, held, punch && !BedwarsDetector.onHypixel());
         } else if (block == Blocks.chest) {
             lastChestPos = mop.getBlockPos();
             ticksSinceChestTouch = 0;
             if (punch) teamChestInteractionWarmup = 100;
         }
+    }
+
+    private static final Item[] TRACKED_ITEMS = {Items.iron_ingot, Items.gold_ingot, Items.diamond, Items.emerald};
+
+    /** Remembers how much of each sent material the player has, so the drop after the server takes it is counted. */
+    private void startEnderDeposit(Minecraft mc, ItemStack held, boolean everyMaterial) {
+        for (Item item : TRACKED_ITEMS) {
+            if (!everyMaterial && (held == null || held.getItem() != item)) continue;
+            int count = countItemInInventory(mc, item);
+            if (count == 0) continue;
+            // Several clicks before the server removes the items would each count the same deposit
+            boolean waiting = false;
+            for (PendingDeposit existing : pendingDeposits) {
+                if (existing.item == item) {
+                    waiting = true;
+                    break;
+                }
+            }
+            if (!waiting) pendingDeposits.add(new PendingDeposit(item, count));
+        }
+    }
+
+    /** "Chest now holds: 20 Iron Ingots, 2 Golden Ingots." The line lists what the clicked chest contains. */
+    private void onChestHoldings(int[] holds) {
+        long now = System.currentTimeMillis();
+
+        if (openedEnderBlock()) {
+            if (holds[Delta.IRON] >= 0) lastIronBase = holds[Delta.IRON];
+            if (holds[Delta.GOLD] >= 0) lastGoldBase = holds[Delta.GOLD];
+            if (holds[Delta.DIAMOND] >= 0) lastDiaBase = holds[Delta.DIAMOND];
+            if (holds[Delta.EMERALD] >= 0) lastEmeBase = holds[Delta.EMERALD];
+            pendingDeposits.clear();
+            return;
+        }
+        if (!openedChestBlock()) return;
+
+        if (!acceptTeamChest(lastChestPos)) {
+            for (int r = 0; r < Delta.COUNT; r++) {
+                if (holds[r] >= 0) rememberOtherTotal(lastChestPos, r, holds[r]);
+            }
+            return;
+        }
+
+        Delta change = new Delta();
+        for (int r = 0; r < Delta.COUNT; r++) {
+            if (holds[r] < 0) continue;
+            int gained = holds[r] - ledger.get(r);
+            if (ledger.isKnown(r) && gained > 0) change.add(r, gained);
+            ledger.total(r, holds[r], now);
+        }
+        publishLedger();
+        if (!change.isZero()) TeamChestSync.record(change);
     }
 
     // Read authoritative totals from chat
@@ -284,6 +333,12 @@ public class ResourceTracker {
         if (raw == null) return;
 
         String msg = StringUtils.stripControlCodes(raw);
+
+        int[] holds = TeamChestMessage.holdings(msg);
+        if (holds != null) {
+            onChestHoldings(holds);
+            return;
+        }
 
         // Players are sent to their bases when the game starts. Read the spawn a moment later.
         if (msg.contains("Protect your bed and destroy the enemy beds")) {
@@ -421,6 +476,8 @@ public class ResourceTracker {
             enderGuiWarmup = 2;
             enderOpenTicks = 0;
             enderLoaded = false;
+            // The open chest is the real source of truth, so drop unconfirmed deposits
+            pendingDeposits.clear();
         }
 
         Counts chestCounts =
@@ -646,6 +703,12 @@ public class ResourceTracker {
 
         while (it.hasNext()) {
             PendingDeposit pd = it.next();
+
+            // The click did not deposit anything (chest full, wrong item, etc.)
+            if (++pd.age > 40) {
+                it.remove();
+                continue;
+            }
 
             int now = countItemInInventory(mc, pd.item);
             int diff = pd.inventorySnapshot - now;
