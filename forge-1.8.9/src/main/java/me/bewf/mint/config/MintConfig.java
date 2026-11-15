@@ -22,6 +22,21 @@ public class MintConfig extends Config {
 
     public static final MintConfig INSTANCE = new MintConfig();
 
+    @Button(
+            name = "Want to edit the HUD?",
+            text = "Edit HUD",
+            category = "HUD",
+            subcategory = "Editor"
+    )
+    public Runnable editHud = () -> {
+        try {
+            Object screen = Class.forName("cc.polyfrost.oneconfig.internal.gui.HudGui").getConstructor().newInstance();
+            Class.forName("cc.polyfrost.oneconfig.utils.gui.GuiUtils").getMethod("displayScreen", Object.class).invoke(null, screen);
+        } catch (Throwable t) {
+            UChat.chat(EnumChatFormatting.AQUA + "[Mint] " + EnumChatFormatting.GOLD + "Open the HUD editor with the HUD button in the OneConfig sidebar.");
+        }
+    };
+
     @HUD(
             name = "Resource Tracker",
             category = "HUD"
@@ -136,7 +151,7 @@ public class MintConfig extends Config {
     @Checkbox(
             name = "Share Team Chest In Party Chat",
             description = "The following settings are used at your own risk. Send a message in party chat when you deposit or take things out of the team chest. This will automatically update the HUD for other people with this mod. Only sent while you are in a party.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Sync"
     )
     public boolean partySync = true;
@@ -144,7 +159,7 @@ public class MintConfig extends Config {
     @Checkbox(
             name = "Read Teammates' Updates",
             description = "Update your team chest numbers when teammates with this mod deposit or take things out of the team chest.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Sync"
     )
     public boolean readPartySync = true;
@@ -152,7 +167,7 @@ public class MintConfig extends Config {
     @Checkbox(
             name = "Hide Update Messages",
             description = "Hide these messages in your chat. Your HUD will still update. If you leave them showing, you can pick their colors below.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Sync"
     )
     public boolean hideSyncMessages = false;
@@ -160,7 +175,7 @@ public class MintConfig extends Config {
     @Text(
             name = "Server 1 Address",
             description = "The server's address, like hypixel.net. Its subdomains count too. Hypixel is filled in as an example. Away from Hypixel the mod sends updates whether or not you are in a party.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Servers"
     )
     public String partyServer1Address = "hypixel.net";
@@ -168,7 +183,7 @@ public class MintConfig extends Config {
     @Text(
             name = "Server 1 Party Command",
             description = "The command that sends a message to party chat on that server, like /pc.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Servers"
     )
     public String partyServer1Command = "/pc";
@@ -176,7 +191,7 @@ public class MintConfig extends Config {
     @Text(
             name = "Server 2 Address",
             description = "Another server to send team chest updates on. Leave it empty to skip it.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Servers"
     )
     public String partyServer2Address = "";
@@ -184,7 +199,7 @@ public class MintConfig extends Config {
     @Text(
             name = "Server 2 Party Command",
             description = "The command that sends a message to party chat on that server.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Servers"
     )
     public String partyServer2Command = "";
@@ -192,7 +207,7 @@ public class MintConfig extends Config {
     @Text(
             name = "Server 3 Address",
             description = "Another server to send team chest updates on. Leave it empty to skip it.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Servers"
     )
     public String partyServer3Address = "";
@@ -200,7 +215,7 @@ public class MintConfig extends Config {
     @Text(
             name = "Server 3 Party Command",
             description = "The command that sends a message to party chat on that server.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Servers"
     )
     public String partyServer3Command = "";
@@ -208,7 +223,7 @@ public class MintConfig extends Config {
     @Text(
             name = "Server 4 Address",
             description = "Another server to send team chest updates on. Leave it empty to skip it.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Servers"
     )
     public String partyServer4Address = "";
@@ -216,27 +231,27 @@ public class MintConfig extends Config {
     @Text(
             name = "Server 4 Party Command",
             description = "The command that sends a message to party chat on that server.",
-            category = "Team Chest",
+            category = "Party Sync",
             subcategory = "Party Servers"
     )
     public String partyServer4Command = "";
 
-    @Color(name = "Deposit Color", category = "Team Chest", subcategory = "Party Sync Colors")
+    @Color(name = "Deposit Color", category = "Party Sync", subcategory = "Party Sync Colors")
     public OneColor syncPlusColor = new OneColor(85, 255, 85);
 
-    @Color(name = "Withdrawal Color", category = "Team Chest", subcategory = "Party Sync Colors")
+    @Color(name = "Withdrawal Color", category = "Party Sync", subcategory = "Party Sync Colors")
     public OneColor syncMinusColor = new OneColor(255, 85, 85);
 
-    @Color(name = "Iron Color", category = "Team Chest", subcategory = "Resource Colors")
+    @Color(name = "Iron Color", category = "Party Sync", subcategory = "Resource Colors")
     public OneColor ironColor = new OneColor(255, 255, 255);
 
-    @Color(name = "Gold Color", category = "Team Chest", subcategory = "Resource Colors")
+    @Color(name = "Gold Color", category = "Party Sync", subcategory = "Resource Colors")
     public OneColor goldColor = new OneColor(255, 170, 0);
 
-    @Color(name = "Diamond Color", category = "Team Chest", subcategory = "Resource Colors")
+    @Color(name = "Diamond Color", category = "Party Sync", subcategory = "Resource Colors")
     public OneColor diamondColor = new OneColor(85, 255, 255);
 
-    @Color(name = "Emerald Color", category = "Team Chest", subcategory = "Resource Colors")
+    @Color(name = "Emerald Color", category = "Party Sync", subcategory = "Resource Colors")
     public OneColor emeraldColor = new OneColor(85, 255, 85);
 
     @Checkbox(
@@ -279,7 +294,7 @@ public class MintConfig extends Config {
     @Checkbox(
             name = "Ender Chest Waypoint",
             description = "Show a small label above your Ender Chest with what is inside it.",
-            category = "Team Chest",
+            category = "Ender Chest",
             subcategory = "Ender Chest Waypoint"
     )
     public boolean enderChestWaypoint = true;
@@ -287,28 +302,28 @@ public class MintConfig extends Config {
     @Dropdown(
             name = "Ender Chest Amount",
             description = "Chest only shows what is in the Ender Chest. Chest + inventory adds your inventory.",
-            category = "Team Chest",
+            category = "Ender Chest",
             subcategory = "Ender Chest Waypoint",
             options = {"Chest only", "Chest + inventory"}
     )
     public int enderChestWaypointAmount = 0;
 
-    @Checkbox(name = "Show Iron", category = "Team Chest", subcategory = "Ender Chest Waypoint")
+    @Checkbox(name = "Show Iron", category = "Ender Chest", subcategory = "Ender Chest Waypoint")
     public boolean enderWaypointIron = true;
 
-    @Checkbox(name = "Show Gold", category = "Team Chest", subcategory = "Ender Chest Waypoint")
+    @Checkbox(name = "Show Gold", category = "Ender Chest", subcategory = "Ender Chest Waypoint")
     public boolean enderWaypointGold = true;
 
-    @Checkbox(name = "Show Diamond", category = "Team Chest", subcategory = "Ender Chest Waypoint")
+    @Checkbox(name = "Show Diamond", category = "Ender Chest", subcategory = "Ender Chest Waypoint")
     public boolean enderWaypointDiamond = true;
 
-    @Checkbox(name = "Show Emerald", category = "Team Chest", subcategory = "Ender Chest Waypoint")
+    @Checkbox(name = "Show Emerald", category = "Ender Chest", subcategory = "Ender Chest Waypoint")
     public boolean enderWaypointEmerald = true;
 
     @Slider(
             name = "Waypoint Size",
             description = "Makes both labels bigger or smaller. 1 is the size of normal game text.",
-            category = "Team Chest",
+            category = "Waypoint Style",
             subcategory = "Waypoint Style",
             min = 0.5f, max = 8f
     )
@@ -317,7 +332,7 @@ public class MintConfig extends Config {
     @Slider(
             name = "Max Distance",
             description = "Labels further away than this many blocks are hidden.",
-            category = "Team Chest",
+            category = "Waypoint Style",
             subcategory = "Waypoint Style",
             min = 16f, max = 512f
     )
@@ -326,7 +341,7 @@ public class MintConfig extends Config {
     @Checkbox(
             name = "Shrink With Distance",
             description = "Labels get a little smaller the further away they are. Off keeps them one size.",
-            category = "Team Chest",
+            category = "Waypoint Style",
             subcategory = "Waypoint Style"
     )
     public boolean waypointShrink = true;
@@ -334,7 +349,7 @@ public class MintConfig extends Config {
     @Dropdown(
             name = "Resource Marker",
             description = "What goes next to each amount. Icon shows the item, Letter shows i, g, d or e, and None colors the amount with its resource color.",
-            category = "Team Chest",
+            category = "Waypoint Style",
             subcategory = "Waypoint Style",
             options = {"Icon", "Letter", "None"}
     )
@@ -342,7 +357,7 @@ public class MintConfig extends Config {
 
     @Checkbox(
             name = "Text Shadow",
-            category = "Team Chest",
+            category = "Waypoint Style",
             subcategory = "Waypoint Style"
     )
     public boolean waypointShadow = true;
