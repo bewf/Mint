@@ -386,10 +386,14 @@ public class ResourceTracker {
     }
 
     /** A teammate changed the team chest and told the party. */
-    static void applyTeammateUpdate(Delta change) {
-        if (ledger.applyRemote(change, System.currentTimeMillis(), homeGuiOpen)) {
-            publishLedger();
-        }
+    /** Returns null when the update was applied, otherwise the reason it was ignored. */
+    static String applyTeammateUpdate(Delta change) {
+        long now = System.currentTimeMillis();
+        if (homeGuiOpen) return "you have the team chest open";
+        if (ledger.sinceLook(now) < TeamChestLedger.RACE_MS) return "you looked at the chest a moment ago";
+        ledger.applyRemote(change, now, homeGuiOpen);
+        publishLedger();
+        return null;
     }
 
     private static void publishLedger() {

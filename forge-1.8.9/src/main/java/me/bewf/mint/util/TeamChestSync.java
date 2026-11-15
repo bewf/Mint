@@ -83,7 +83,9 @@ public final class TeamChestSync {
         TeamChestMessage.Parsed update = TeamChestMessage.parse(line.body);
         if (update == null) return;
 
-        if (!SENT.consumeIfOurs(line.body, System.currentTimeMillis())) applyFrom(line.sender, update);
+        // Our own message comes back from the server. Someone else who sent the same text is a teammate, not an echo.
+        boolean echo = SENT.consumeIfOurs(line.body, System.currentTimeMillis());
+        if (!echo || isOtherPlayer(line.sender)) applyFrom(line.sender, update);
         if (MintConfig.INSTANCE.readPartySync) requestTip();
 
         if (MintConfig.INSTANCE.hideSyncMessages) {
@@ -230,8 +232,16 @@ public final class TeamChestSync {
 
         // Our own message comes back from the server, and we already know about it
         if (sender.equalsIgnoreCase(mc.thePlayer.getName())) return;
-        if (!ResourceTracker.isActive() && !MintConfig.INSTANCE.showOutsideBedwars) return;
-        if (!onMyTeam(mc, sender)) return;
+        String what = sender + " " + TeamChestMessage.format(update.delta, -1);
+        if (!ResourceTracker.isActive() && !BedwarsDetector.onHypixel() && !MintConfig.INSTANCE.showOutsideBedwars) {
+            System.out.println("[Mint] Party update from " + what + " ignored, not in a game");
+            return;
+        }
+        String otherTeam = teamMismatch(mc, sender);
+        if (otherTeam != null) {
+            System.out.println("[Mint] Party update from " + what + " ignored, " + otherTeam);
+            return;
+        }
 
         if (update.seq >= 0) {
             Integer last = LAST_SEQ.get(sender.toLowerCase());
@@ -239,21 +249,38 @@ public final class TeamChestSync {
             LAST_SEQ.put(sender.toLowerCase(), Integer.valueOf(update.seq));
         }
 
-        ResourceTracker.applyTeammateUpdate(update.delta);
+        String skipped = ResourceTracker.applyTeammateUpdate(update.delta);
+        System.out.println("[Mint] Party update from " + what + (skipped == null ? " applied" : " ignored, " + skipped));
+    }
+
+    /** True when the sender is a player on the scoreboard other than ourselves. */
+    private static boolean isOtherPlayer(String sender) {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc.thePlayer == null || mc.theWorld == null || sender == null || sender.isEmpty()) return false;
+            if (sender.equalsIgnoreCase(mc.thePlayer.getName())) return false;
+            return mc.theWorld.getScoreboard().getPlayersTeam(sender) != null;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /**
-     * A party can hold players from different teams, and their chests are not ours. Compares the
-     * scoreboard teams. When either one is unknown the update is accepted.
+     * A party can hold players from different teams, and their chests are not ours. Teams count as the same when
+     * they are the same scoreboard team or show the same prefix (some servers give every player their own team).
+     * When either one is unknown the update is accepted. Returns null for the same team, otherwise a description.
      */
-    private static boolean onMyTeam(Minecraft mc, String sender) {
+    private static String teamMismatch(Minecraft mc, String sender) {
         try {
             ScorePlayerTeam theirs = mc.theWorld.getScoreboard().getPlayersTeam(sender);
             ScorePlayerTeam mine = mc.theWorld.getScoreboard().getPlayersTeam(mc.thePlayer.getName());
-            if (theirs == null || mine == null) return true;
-            return theirs == mine;
+            if (theirs == null || mine == null || theirs == mine) return null;
+            String a = StringUtils.stripControlCodes(theirs.getColorPrefix()).trim();
+            String b = StringUtils.stripControlCodes(mine.getColorPrefix()).trim();
+            if (!a.isEmpty() && a.equals(b)) return null;
+            return "different team (theirs " + theirs.getRegisteredName() + " \"" + a + "\", yours " + mine.getRegisteredName() + " \"" + b + "\")";
         } catch (Throwable t) {
-            return true;
+            return null;
         }
     }
 

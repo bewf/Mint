@@ -44,6 +44,11 @@ public final class TeamChestLedger {
         lastLookMs = now;
     }
 
+    /** Milliseconds since the last look or printed total. */
+    public long sinceLook(long now) {
+        return now - lastLookMs;
+    }
+
     /** Applies a teammate's update. Returns false when it was ignored. */
     public boolean applyRemote(Delta d, long now, boolean chestOpen) {
         if (chestOpen) return false;

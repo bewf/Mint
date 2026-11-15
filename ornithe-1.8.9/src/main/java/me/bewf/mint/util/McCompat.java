@@ -81,6 +81,21 @@ final class McCompat {
         }
     }
 
+    /** The text a scoreboard team puts in front of its players' names, without colour codes. Empty when unknown. */
+    static String teamPrefix(Object team) {
+        try {
+            for (Method m : team.getClass().getMethods()) {
+                if (m.getParameterCount() == 0 && m.getReturnType() == String.class
+                        && m.getName().toLowerCase().contains("prefix")) {
+                    Object value = m.invoke(team);
+                    return value == null ? "" : value.toString().replaceAll("\u00A7.", "").trim();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return "";
+    }
+
     static String inventoryName(Inventory inventory) {
         try {
             if (inventoryNameMethod == null) {

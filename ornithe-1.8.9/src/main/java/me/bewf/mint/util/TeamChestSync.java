@@ -179,7 +179,9 @@ public final class TeamChestSync {
             TeamChestMessage.Parsed update = TeamChestMessage.parse(line.body);
             if (update == null) return;
 
-            if (!SENT.consumeIfOurs(line.body, System.currentTimeMillis())) applyFrom(line.sender, update);
+            // Our own message comes back from the server. Someone else who sent the same text is a teammate, not an echo.
+            boolean echo = SENT.consumeIfOurs(line.body, System.currentTimeMillis());
+            if (!echo || isOtherPlayer(line.sender)) applyFrom(line.sender, update);
             if (MintConfig.INSTANCE.readPartySync) requestTip();
             if (MintConfig.INSTANCE.hideSyncMessages) {
                 event.cancelled = true;
@@ -228,12 +230,16 @@ public final class TeamChestSync {
 
         // Our own message comes back from the server, and we already know about it
         if (sender.equalsIgnoreCase(McCompat.playerName())) return;
-        if (!ResourceTracker.isActive() && !MintConfig.INSTANCE.showOutsideBedwars) return;
-
-        // A party can hold players from different teams, and their chests are not ours
-        Object theirs = McCompat.teamOf(sender);
-        Object mine = McCompat.teamOf(McCompat.playerName());
-        if (theirs != null && mine != null && theirs != mine) return;
+        String what = sender + " " + TeamChestMessage.format(update.delta, -1);
+        if (!ResourceTracker.isActive() && !BedwarsDetector.onHypixel() && !MintConfig.INSTANCE.showOutsideBedwars) {
+            System.out.println("[Mint] Party update from " + what + " ignored, not in a game");
+            return;
+        }
+        String otherTeam = teamMismatch(sender);
+        if (otherTeam != null) {
+            System.out.println("[Mint] Party update from " + what + " ignored, " + otherTeam);
+            return;
+        }
 
         if (update.seq >= 0) {
             Integer last = LAST_SEQ.get(sender.toLowerCase());
@@ -241,7 +247,29 @@ public final class TeamChestSync {
             LAST_SEQ.put(sender.toLowerCase(), Integer.valueOf(update.seq));
         }
 
-        ResourceTracker.applyTeammateUpdate(update.delta);
+        String skipped = ResourceTracker.applyTeammateUpdate(update.delta);
+        System.out.println("[Mint] Party update from " + what + (skipped == null ? " applied" : " ignored, " + skipped));
+    }
+
+    /** True when the sender is a player on the scoreboard other than ourselves. */
+    private static boolean isOtherPlayer(String sender) {
+        if (sender == null || sender.isEmpty() || sender.equalsIgnoreCase(McCompat.playerName())) return false;
+        return McCompat.teamOf(sender) != null;
+    }
+
+    /**
+     * A party can hold players from different teams, and their chests are not ours. Teams count as the same when
+     * they are the same scoreboard team or show the same prefix (some servers give every player their own team).
+     * When either one is unknown the update is accepted. Returns null for the same team, otherwise a description.
+     */
+    private static String teamMismatch(String sender) {
+        Object theirs = McCompat.teamOf(sender);
+        Object mine = McCompat.teamOf(McCompat.playerName());
+        if (theirs == null || mine == null || theirs == mine) return null;
+        String a = McCompat.teamPrefix(theirs);
+        String b = McCompat.teamPrefix(mine);
+        if (!a.isEmpty() && a.equals(b)) return null;
+        return "different team (theirs \"" + a + "\", yours \"" + b + "\")";
     }
 
     /** Asks for the one time tip. It shows on the next tick, after the message that caused it. */
