@@ -288,7 +288,7 @@ public final class TeamChestSync {
             if (theirs == null || mine == null || theirs == mine) return null;
             String a = StringUtil.stripColor(theirs.getPlayerPrefix().getString()).trim();
             String b = StringUtil.stripColor(mine.getPlayerPrefix().getString()).trim();
-            if (!a.isEmpty() && a.equals(b)) return null;
+            if (a.isEmpty() || b.isEmpty() || a.equals(b)) return null;
             return "different team (theirs " + theirs.getName() + " \"" + a + "\", yours " + mine.getName() + " \"" + b + "\")";
         } catch (Throwable t) {
             return null;

@@ -566,6 +566,7 @@ public class ResourceTracker {
 
         handlePendingDeposits(mc);
 
+        updateWindowLatch(mc);
         boolean inEnderGui = isEnderChestGuiOpen(mc);
 
         if (inEnderGui && !wasEnderGui) {
@@ -716,14 +717,33 @@ public class ResourceTracker {
         return ticksSinceChestTouch < OPEN_WINDOW_TICKS && ticksSinceChestTouch < ticksSinceEnderTouch;
     }
 
+    private static Object lastMenu = null;
+    private static Object enderMenu = null;
+    private static Object teamMenu = null;
+
+    // Decided once when a window opens, so it still counts after the 40 ticks are over
+    private static void updateWindowLatch(Minecraft mc) {
+        Object menu = mc.player.menu instanceof ChestMenu ? mc.player.menu : null;
+        if (menu == lastMenu) return;
+        lastMenu = menu;
+        enderMenu = menu != null && openedEnderBlock() ? menu : null;
+        teamMenu = menu != null && openedChestBlock() ? menu : null;
+    }
+
     private static boolean isEnderChestGuiOpen(Minecraft mc) {
         String name = openChestTitle(mc);
-        return name != null && (name.contains("ender") || (!name.contains("chest") && openedEnderBlock()));
+        if (name == null) return false;
+        if (name.contains("ender")) return true;
+        if (name.contains("chest")) return false;
+        return mc.player.menu == enderMenu;
     }
 
     private static boolean isTeamChestGuiOpen(Minecraft mc) {
         String name = openChestTitle(mc);
-        return name != null && !name.contains("ender") && (name.contains("chest") || openedChestBlock());
+        if (name == null) return false;
+        if (name.contains("ender")) return false;
+        if (name.contains("chest")) return true;
+        return mc.player.menu == teamMenu;
     }
 
     /** True when any slot of the open chest window holds an item, so the server has sent its contents. */

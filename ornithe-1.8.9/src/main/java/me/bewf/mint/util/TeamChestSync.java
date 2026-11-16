@@ -268,7 +268,7 @@ public final class TeamChestSync {
         if (theirs == null || mine == null || theirs == mine) return null;
         String a = McCompat.teamPrefix(theirs);
         String b = McCompat.teamPrefix(mine);
-        if (!a.isEmpty() && a.equals(b)) return null;
+        if (a.isEmpty() || b.isEmpty() || a.equals(b)) return null;
         return "different team (theirs \"" + a + "\", yours \"" + b + "\")";
     }
 

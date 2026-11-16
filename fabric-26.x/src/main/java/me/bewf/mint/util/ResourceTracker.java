@@ -466,6 +466,7 @@ public class ResourceTracker {
 
         handlePendingDeposits(mc);
 
+        updateWindowLatch(mc);
         boolean inEnderGui = isEnderChestGuiOpen(mc);
 
         if (inEnderGui && !wasEnderGui) {
@@ -749,14 +750,33 @@ public class ResourceTracker {
         return ticksSinceChestTouch < OPEN_WINDOW_TICKS && ticksSinceChestTouch < ticksSinceEnderTouch;
     }
 
+    private static Object lastMenu = null;
+    private static Object enderMenu = null;
+    private static Object teamMenu = null;
+
+    // Decided once when a window opens, so it still counts after the 40 ticks are over
+    private void updateWindowLatch(Minecraft mc) {
+        Object menu = mc.player.containerMenu instanceof ChestMenu ? mc.player.containerMenu : null;
+        if (menu == lastMenu) return;
+        lastMenu = menu;
+        enderMenu = menu != null && openedEnderBlock() ? menu : null;
+        teamMenu = menu != null && openedChestBlock() ? menu : null;
+    }
+
     private boolean isEnderChestGuiOpen(Minecraft mc) {
+        if (!(mc.player.containerMenu instanceof ChestMenu)) return false;
         String name = openChestTitle(mc);
-        return name != null && (name.contains("ender") || (!name.contains("chest") && openedEnderBlock()));
+        if (name != null && name.contains("ender")) return true;
+        if (name != null && name.contains("chest")) return false;
+        return mc.player.containerMenu == enderMenu;
     }
 
     private boolean isTeamChestGuiOpen(Minecraft mc) {
+        if (!(mc.player.containerMenu instanceof ChestMenu)) return false;
         String name = openChestTitle(mc);
-        return name != null && !name.contains("ender") && (name.contains("chest") || openedChestBlock());
+        if (name != null && name.contains("ender")) return false;
+        if (name != null && name.contains("chest")) return true;
+        return mc.player.containerMenu == teamMenu;
     }
 
     /** True when any slot of the open chest window holds an item, so the server has sent its contents. */
