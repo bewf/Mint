@@ -2,12 +2,7 @@ package me.bewf.mint.sync;
 
 import java.util.Arrays;
 
-/**
- * A change to the four tracked resources, in the order iron, gold, diamond, emerald.
- * Positive numbers are deposits into the team chest, negative numbers are withdrawals.
- */
 public final class Delta {
-
     public static final int IRON = 0;
     public static final int GOLD = 1;
     public static final int DIAMOND = 2;

@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/** Plain checks for the shared sync code. Run with shared/test.sh, no test framework needed. */
 public final class SyncSelfTest {
-
     private static int failures = 0;
     private static int checks = 0;
 
@@ -127,14 +125,12 @@ public final class SyncSelfTest {
         eq(out, new Delta(10, 3, 0, 0), "burst combined into one");
         check(b.poll(1600) == null, "nothing left after sending");
 
-        // nine quick punches are still a single message
         ChestBuffer nine = new ChestBuffer(1500, 1000);
         for (int i = 0; i < 9; i++) nine.add(new Delta(64, 0, 0, 0), i * 100);
         int sent = 0;
         for (long t = 0; t < 5000; t += 50) if (nine.poll(t) != null) sent++;
         eq(sent, 1, "nine punches, one message");
 
-        // a flush request goes out early but still waits for the minimum gap
         ChestBuffer f = new ChestBuffer(1500, 1000);
         f.add(new Delta(1, 0, 0, 0), 0);
         check(f.poll(1500) != null, "first message");
@@ -143,7 +139,6 @@ public final class SyncSelfTest {
         check(f.poll(1700) == null, "flush waits for the minimum gap");
         check(f.poll(2500) != null, "flush goes out after the gap");
 
-        // deposit then withdraw the same amount cancels
         ChestBuffer c = new ChestBuffer(1500, 1000);
         c.add(new Delta(5, 0, 0, 0), 0);
         c.add(new Delta(-5, 0, 0, 0), 100);
@@ -170,7 +165,6 @@ public final class SyncSelfTest {
         l.total(Delta.IRON, 5, 0);
         check(l.isKnown(Delta.IRON) && !l.isKnown(Delta.GOLD), "a total makes one resource known");
         l.reset();
-        // a fresh game starts with an empty chest, so teammates' updates apply straight away
         check(l.applyRemote(new Delta(10, 0, 0, 0), 10_000, false), "applies at game start");
         eq(l.get(Delta.IRON), 10, "iron after update");
 
@@ -249,7 +243,6 @@ public final class SyncSelfTest {
     }
 
     private static void picker() {
-        // player at spawn facing +Z
         int[] team = {3, 64, 2};
         int[] enemy = {45, 64, 0};
         int[] above = {1, 72, 3};
@@ -265,13 +258,11 @@ public final class SyncSelfTest {
 
         check(ChestPicker.pick(0.5, 64, 0.5, 0, chests(enemy)) == null, "nothing in range");
 
-        // chest to the right: facing +Z, right is -X
         int[] right = {-5, 64, 1};
         int[] left = {7, 64, 1};
         best = ChestPicker.pick(0.5, 64, 0.5, 0, chests(left, right));
         check(best == right, "closer side wins");
 
-        // far chest wider than a map's usual base is still found
         int[] wide = {15, 65, 4};
         check(ChestPicker.pick(0.5, 64, 0.5, 0, chests(wide)) == wide, "wide search range");
 
@@ -281,37 +272,29 @@ public final class SyncSelfTest {
     }
 
     private static void projection() {
-        // looking along +Z, a point straight ahead lands in the middle
         double[] p = Projection.project(0, 64, 0, 0, 0, 70, 400, 300, 0, 64, 10);
         check(p != null && Math.abs(p[0] - 200) < 1e-6 && Math.abs(p[1] - 150) < 1e-6, "straight ahead is centred");
         eq(Math.round(p[2]), 10L, "distance");
 
-        // facing +Z, the player's right is -X: a point at -X shows on the right half
         p = Projection.project(0, 64, 0, 0, 0, 70, 400, 300, -2, 64, 10);
         check(p != null && p[0] > 200 && Math.abs(p[1] - 150) < 1e-6, "right of the view is right on screen");
         p = Projection.project(0, 64, 0, 0, 0, 70, 400, 300, 2, 64, 10);
         check(p != null && p[0] < 200, "left of the view is left on screen");
 
-        // higher in the world is higher on the screen (smaller y)
         p = Projection.project(0, 64, 0, 0, 0, 70, 400, 300, 0, 66, 10);
         check(p != null && p[1] < 150, "above is up");
 
-        // behind the camera
         check(Projection.project(0, 64, 0, 0, 0, 70, 400, 300, 0, 64, -5) == null, "behind the camera");
 
-        // yaw 90 looks along -X
         p = Projection.project(0, 64, 0, 90, 0, 70, 400, 300, -10, 64, 0);
         check(p != null && Math.abs(p[0] - 200) < 1e-6, "yaw 90 faces -X");
 
-        // looking down by 45 degrees puts a point at the same height below the centre line
         p = Projection.project(0, 64, 0, 0, 45, 70, 400, 300, 0, 64, 10);
         check(p != null && p[1] < 150, "looking down puts level points above centre");
 
-        // the vertical field of view maps to the screen height
         p = Projection.project(0, 64, 0, 0, 0, 90, 400, 300, 0, 64 + 10, 10);
         check(p != null && Math.abs(p[1] - 0) < 1e-6, "edge of the vertical field of view");
 
-        // view bobbing: none and zero give the plain result
         double[] plain = Projection.project(0, 64, 0, 30, 10, 70, 400, 300, -3, 66, 8);
         double[] none = Projection.project(0, 64, 0, 30, 10, 70, 400, 300, -3, 66, 8, null);
         double[] zero = Projection.project(0, 64, 0, 30, 10, 70, 400, 300, -3, 66, 8, new double[]{0, 0, 0, 0});
@@ -350,7 +333,6 @@ public final class SyncSelfTest {
                 WaypointLabel.AMOUNT_CHEST).get(0).letter, 'e', "emeralds can show on any chest");
         eq(WaypointLabel.parts(none, none, all, WaypointLabel.AMOUNT_CHEST).size(), 0, "empty chest has no label");
 
-        // chest plus inventory
         int[] inv = {10, 0, 2, 0};
         List<WaypointLabel.Part> total = WaypointLabel.parts(new int[]{64, 0, 3, 8}, inv, all, WaypointLabel.AMOUNT_TOTAL);
         eq(total.get(0).count, "74", "iron is chest plus inventory");
@@ -361,7 +343,6 @@ public final class SyncSelfTest {
         eq(WaypointLabel.parts(none, inv, all, WaypointLabel.AMOUNT_TOTAL).get(0).count, "10",
                 "total counts the inventory even when the chest is empty");
 
-        // layout: one row for one or two, then two on the bottom and the rest above
         int[] fullChest = {5, 6, 7, 8};
         List<WaypointLabel.Part> four = WaypointLabel.parts(fullChest, none, all, WaypointLabel.AMOUNT_CHEST);
         List<List<WaypointLabel.Part>> rows4 = WaypointLabel.rows(four);
@@ -397,7 +378,6 @@ public final class SyncSelfTest {
     }
 
     private static void deposits() {
-        // The real lines Hypixel printed after punch deposits
         check(TeamChestMessage.depositAmount("Deposited x24 Iron Ingot into Team Chest! (24 Total)") == 24, "iron deposit line");
         check(TeamChestMessage.depositAmount("Deposited x4 Gold Ingot into Team Chest! (4 Total)") == 4, "gold deposit line");
         check(TeamChestMessage.depositAmount("Deposited x33 Iron Ingot into Team Chest! (33 Total)") == 33, "second iron deposit line");

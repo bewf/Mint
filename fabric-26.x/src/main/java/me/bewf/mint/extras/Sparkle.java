@@ -136,7 +136,6 @@ public final class Sparkle {
         GAME, SKYHANNI, OTHER
     }
 
-
     private static Reader reader(String hookedMethod) {
         try {
             return WALKER.walk(frames -> {
@@ -305,10 +304,6 @@ public final class Sparkle {
         }
     }
 
-    /**
-     * True when the text before a name already ends with the title, so another mod (or an earlier pass)
-     * has added it. Colour codes, spacing and capital letters are ignored when comparing.
-     */
     private static boolean endsWithTitle(String before, String prefix) {
         String b = before.replaceAll("\u00A7.", "").replace('\u00A0', ' ').replaceAll("\\s+", " ").trim().toLowerCase();
         String p = prefix.replace('\u00A0', ' ').replaceAll("\\s+", " ").trim().toLowerCase();

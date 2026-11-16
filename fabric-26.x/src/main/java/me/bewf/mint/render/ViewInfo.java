@@ -8,26 +8,14 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-/**
- * What the waypoint labels need to know about the view to stay on their chest: where the camera really
- * is and which way it faces (third person puts it away from the player's eyes), the sway of walking
- * (view bobbing) and the wider view while sprinting. These are read from the game, by type where a name
- * may change between versions. Anything that cannot be read is left out, which gives the plain position.
- */
 final class ViewInfo {
-
     private ViewInfo() {
     }
 
-    // What the last frame managed to read, for the waypoint debug line
     static String fovNote = "not read yet";
     static String cameraNote = "not read yet";
     static String bobNote = "not read yet";
 
-    /**
-     * The sway of walking as {moveRight, moveUp, rollDegrees, pitchDegrees}, the way the game applies it
-     * to the view, or null when view bobbing is off or cannot be read.
-     */
     static double[] bob(Minecraft mc, float partial) {
         try {
             if (mc.player == null) return null;
@@ -54,7 +42,6 @@ final class ViewInfo {
                     sin * strength * 3.0,
                     Math.abs(Math.cos(phase - 0.2) * strength) * 5.0,
             };
-            // Walking never moves the view by more than a fraction of a block or a few degrees
             if (Math.abs(out[0]) > 1.0 || Math.abs(out[1]) > 1.0 || Math.abs(out[2]) > 20.0 || Math.abs(out[3]) > 30.0) {
                 bobNote = "values out of range";
                 return null;
@@ -115,11 +102,6 @@ final class ViewInfo {
     private static Method pitchGetter = null;
     private static boolean cameraMembersSearched = false;
 
-    /**
-     * Where the game's camera is this frame as {x, y, z, yaw, pitch}, or null when that cannot be read.
-     * In first person this is the player's eyes. In third person it is the spot behind or in front of
-     * the player, looking the way the game turns it.
-     */
     static double[] camera(Minecraft mc) {
         try {
             Object renderer = gameRenderer(mc);
@@ -181,7 +163,6 @@ final class ViewInfo {
     private static boolean fovTried = false;
     private static Method fovMethod = null;
 
-    /** The vertical field of view the game is using this frame, or the fallback when that cannot be read. */
     static double fov(Minecraft mc, float partial, double fallback) {
         try {
             Object renderer = gameRenderer(mc);
@@ -234,7 +215,6 @@ final class ViewInfo {
         return null;
     }
 
-    /** A number field of the object or one of its parents, or NaN when there is none. */
     private static float number(Object target, String name) {
         try {
             Object value = field(target, name);

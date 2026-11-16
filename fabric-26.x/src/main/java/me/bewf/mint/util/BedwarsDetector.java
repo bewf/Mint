@@ -14,7 +14,6 @@ import java.util.Collection;
 import java.util.List;
 
 public class BedwarsDetector {
-
     public static boolean isInHypixelBedwars() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.level == null || mc.level.getScoreboard() == null) return false;
@@ -33,7 +32,6 @@ public class BedwarsDetector {
         return isBedwarsText(title, lines);
     }
 
-    /** The address of the server the player is on, lower case, or empty. */
     public static String serverAddress() {
         try {
             Minecraft mc = Minecraft.getInstance();
@@ -44,16 +42,11 @@ public class BedwarsDetector {
         }
     }
 
-    /** True while connected to Hypixel. The team chest features only run there for now. */
     public static boolean onHypixel() {
         Minecraft mc = Minecraft.getInstance();
         return mc != null && isHypixel(mc);
     }
 
-    /**
-     * True once a game is running. The sidebar then lists every team and marks the player's own with YOU.
-     * The lines are rebuilt from the scoreboard team's prefix and suffix, because that is where the text is.
-     */
     public static boolean hasOwnTeamLine() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.level == null || mc.level.getScoreboard() == null) return false;

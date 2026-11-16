@@ -27,20 +27,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Shares team chest changes with the party and reads the ones teammates share.
- * <p>
- * Changes are collected in a small buffer and sent as one party message, for example
- * {@code [Mint | Team Chest: +10 iron, -4 dia]}. A repeat of a message just sent gets a counter, like {@code #7}. On Hypixel nothing is sent until a quiet
- * {@code /party list} has shown there is a party. The message format and all the timing rules live in
- * the shared {@code me.bewf.mint.sync} package.
- */
 public final class TeamChestSync {
-
     private TeamChestSync() {
     }
 
-    // A burst of punches leaves as one message after half a second, closing the chest sends right away, and two messages are never closer than a second
     private static final ChestBuffer BUFFER = new ChestBuffer(600L, 2500L, 1000L);
 
     private static PartyState party = PartyState.UNKNOWN;
@@ -49,13 +39,10 @@ public final class TeamChestSync {
     private static int nextSeq = 0;
     private static boolean tipPending = false;
 
-    // The command the "click here" in the one time tip runs. It is caught before it reaches the server.
     private static final String SETTINGS_COMMAND = "/mint settings";
 
-    // Party messages we sent ourselves, so the echo from the server is not counted a second time
     private static final RecentMessages SENT = new RecentMessages(15000L);
 
-    // The plain text of what we sent lately, to spot a message that repeats
     private static final RecentMessages RECENT = new RecentMessages(30000L);
 
     private static final Map<String, Integer> LAST_SEQ = new HashMap<String, Integer>();
@@ -70,7 +57,6 @@ public final class TeamChestSync {
         });
     }
 
-    /** The party chat command for the server the player is on, or null when sync is not set up for it. */
     private static String partyCommand() {
         MintConfig c = MintConfig.INSTANCE;
         return PartyServers.commandFor(BedwarsDetector.serverAddress(),
@@ -78,19 +64,16 @@ public final class TeamChestSync {
                 new String[]{c.partyServer1Command, c.partyServer2Command, c.partyServer3Command, c.partyServer4Command});
     }
 
-    /** The player changed the team chest. Deposits are positive, withdrawals negative. */
     public static void record(Delta change) {
         watchServer();
         if (!MintConfig.INSTANCE.partySync || party == PartyState.OUT || partyCommand() == null) return;
         BUFFER.add(change, System.currentTimeMillis());
     }
 
-    /** The player closed the chest: send what is waiting as soon as the minimum gap allows. */
     public static void flush() {
         BUFFER.requestFlush();
     }
 
-    /** Called every tick while in a game. */
     public static void tick() {
         watchServer();
         if (tipPending) {
@@ -105,7 +88,6 @@ public final class TeamChestSync {
 
         long now = System.currentTimeMillis();
         if (!party.canSend(checksParty())) {
-            // On Hypixel nothing goes to party chat until /party list has said there is a party
             if (QUERY.shouldAsk(party, now)) askParty(now);
             return;
         }
@@ -113,7 +95,6 @@ public final class TeamChestSync {
         if (ready != null) send(ready);
     }
 
-    /** Forgets what was known about the party when the player moves to another server. */
     private static void watchServer() {
         String host = PartyServers.host(BedwarsDetector.serverAddress());
         if (host.equals(lastHost)) return;
@@ -122,12 +103,10 @@ public final class TeamChestSync {
         QUERY.reset();
     }
 
-    /** True where the party can be checked quietly instead of guessed. */
     private static boolean checksParty() {
         return PartyServers.isHypixel(BedwarsDetector.serverAddress());
     }
 
-    /** Sends /party list. Its reply is hidden and sets the party state. */
     private static void askParty(long now) {
         QUERY.asked(now);
         Minecraft mc = Minecraft.getInstance();
@@ -152,8 +131,8 @@ public final class TeamChestSync {
         long now = System.currentTimeMillis();
         String plain = TeamChestMessage.format(d, -1);
         if (plain == null) return;
-        // Hypixel drops a message that repeats one just sent, so only a repeat gets a counter
         String body = plain;
+        // Hypixel drops a message that repeats one just sent, so only a repeat gets a counter
         if (RECENT.has(plain, now)) {
             body = TeamChestMessage.format(d, nextSeq);
             nextSeq = (nextSeq + 1) % 100;
@@ -179,7 +158,6 @@ public final class TeamChestSync {
             TeamChestMessage.Parsed update = TeamChestMessage.parse(line.body);
             if (update == null) return;
 
-            // Our own message comes back from the server. Someone else who sent the same text is a teammate, not an echo.
             boolean echo = SENT.consumeIfOurs(line.body, System.currentTimeMillis());
             if (!echo || isOtherPlayer(line.sender)) applyFrom(line.sender, update);
             if (MintConfig.INSTANCE.readPartySync) requestTip();
@@ -204,10 +182,6 @@ public final class TeamChestSync {
         return p;
     }
 
-    /**
-     * Colours a shown update: green deposits, red withdrawals, each resource in its own colour. 1.8.9 only has
-     * sixteen chat colours, so each one is the closest of those. A message that does not match is left alone.
-     */
     private static void recolor(ChatEvent.Receive event, String body) {
         List<TeamChestMessage.Segment> segments = TeamChestMessage.segments(body, palette());
         if (segments == null) return;
@@ -228,7 +202,6 @@ public final class TeamChestSync {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.world == null) return;
 
-        // Our own message comes back from the server, and we already know about it
         if (sender.equalsIgnoreCase(McCompat.playerName())) return;
         String what = sender + " " + TeamChestMessage.format(update.delta, -1);
         if (!ResourceTracker.isActive() && !BedwarsDetector.onHypixel() && !MintConfig.INSTANCE.showOutsideBedwars) {
@@ -251,28 +224,22 @@ public final class TeamChestSync {
         System.out.println("[Mint] Party update from " + what + (skipped == null ? " applied" : " ignored, " + skipped));
     }
 
-    /** True when the sender is a player on the scoreboard other than ourselves. */
     private static boolean isOtherPlayer(String sender) {
         if (sender == null || sender.isEmpty() || sender.equalsIgnoreCase(McCompat.playerName())) return false;
         return McCompat.teamOf(sender) != null;
     }
 
-    /**
-     * A party can hold players from different teams, and their chests are not ours. Teams count as the same when
-     * they are the same scoreboard team or show the same prefix (some servers give every player their own team).
-     * When either one is unknown the update is accepted. Returns null for the same team, otherwise a description.
-     */
     private static String teamMismatch(String sender) {
         Object theirs = McCompat.teamOf(sender);
         Object mine = McCompat.teamOf(McCompat.playerName());
         if (theirs == null || mine == null || theirs == mine) return null;
         String a = McCompat.teamPrefix(theirs);
         String b = McCompat.teamPrefix(mine);
+        // Some servers give every player their own team, so matching prefixes count as the same team
         if (a.isEmpty() || b.isEmpty() || a.equals(b)) return null;
         return "different team (theirs \"" + a + "\", yours \"" + b + "\")";
     }
 
-    /** Asks for the one time tip. It shows on the next tick, after the message that caused it. */
     private static void requestTip() {
         MintConfig c = MintConfig.INSTANCE;
         if (c.hasShownSyncTip) return;
@@ -281,7 +248,6 @@ public final class TeamChestSync {
         tipPending = true;
     }
 
-    /** Shown once, the first time Mint sends or receives a team chest update. */
     private static void showTip() {
         Text tip = new LiteralText("[Mint] ").setStyle(new Style().setColor(Formatting.AQUA));
         tip.append(new LiteralText("Mint shares team chest changes in party chat so teammates with the mod stay up to date. "

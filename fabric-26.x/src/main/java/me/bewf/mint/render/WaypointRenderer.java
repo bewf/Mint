@@ -11,11 +11,7 @@ import me.bewf.mint.util.ResourceTracker;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-//? if >= 26.2 {
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-//?} else {
-/*import net.minecraft.client.gui.GuiGraphics;
-*///?}
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -26,15 +22,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Small floating labels above the team chest and the Ender Chest, showing what is inside.
- * <p>
- * The label is drawn on the HUD layer. Its screen position comes from {@link Projection}, which
- * turns the chest's position in the world into a point on the screen. That keeps this class free
- * of the world rendering code that changes with every Minecraft version.
- */
 public final class WaypointRenderer {
-
     private WaypointRenderer() {
     }
 
@@ -55,11 +43,7 @@ public final class WaypointRenderer {
                 });
     }
 
-    //? if >= 26.2 {
     private static void render(GuiGraphicsExtractor g, float partialTick) {
-    //?} else {
-    /*private static void render(GuiGraphics g, float partialTick) {
-    *///?}
         MintConfig cfg = MintConfig.INSTANCE;
         if (!cfg.teamChestWaypoint && !cfg.enderChestWaypoint) return;
         if (!BedwarsDetector.onHypixel()) return;
@@ -68,9 +52,6 @@ public final class WaypointRenderer {
         if (mc.player == null || mc.level == null) return;
         if (!ResourceTracker.isActive() && !cfg.showOutsideBedwars) return;
 
-        // The game's own camera, so third person (F5, either side) lines up too, and so does the eye
-        // height smoothing when sneaking. In first person the turn comes from the player, which is
-        // always this frame's, and only the position comes from the camera.
         double[] cam = ViewInfo.camera(mc);
         Vec3 eye;
         double yaw;
@@ -86,7 +67,6 @@ public final class WaypointRenderer {
         } else {
             return;
         }
-        // What the game really uses this frame: sprinting widens the view and walking sways it
         double fov = ViewInfo.fov(mc, partialTick, mc.options.fov().get());
         double[] bob = ViewInfo.bob(mc, partialTick);
         int width = mc.getWindow().getGuiScaledWidth();
@@ -118,7 +98,6 @@ public final class WaypointRenderer {
         targets.add(new Target(ResourceTracker.homeChest(), team, HudColors.teamRgb()));
         targets.add(new Target(ResourceTracker.homeEnderChest(), ender, HudColors.enderRgb()));
         if (ender != null) {
-            // Every Ender Chest close by opens the same inventory, so it gets the same label
             for (BlockPos near : ResourceTracker.nearbyEnderChests()) {
                 if (!near.equals(ResourceTracker.homeEnderChest())) targets.add(new Target(near, ender, HudColors.enderRgb()));
             }
@@ -137,7 +116,6 @@ public final class WaypointRenderer {
         for (Target t : targets) {
             if (t.pos == null || t.parts == null || t.parts.isEmpty()) continue;
 
-            // Just above the top of the chest, in the middle
             double[] p = Projection.project(eye.x, eye.y, eye.z, yaw, pitch, fov, width, height,
                     t.pos.getX() + 0.5, t.pos.getY() + WaypointLabel.HEIGHT_ABOVE_CHEST, t.pos.getZ() + 0.5, bob);
             if (p == null || p[2] > cfg.waypointMaxDistance) continue;
@@ -148,11 +126,7 @@ public final class WaypointRenderer {
         }
     }
 
-    //? if >= 26.2 {
     private static void drawDebug(GuiGraphicsExtractor g, Minecraft mc, double fov, boolean camera, boolean bob, double yaw, double pitch) {
-    //?} else {
-    /*private static void drawDebug(GuiGraphics g, Minecraft mc, double fov, boolean camera, boolean bob, double yaw, double pitch) {
-    *///?}
         String[] lines = {
                 String.format("Mint waypoints: fov %.1f (%s), options fov %d", fov, ViewInfo.fovNote, mc.options.fov().get()),
                 "camera: " + ViewInfo.cameraNote + ", bobbing: " + ViewInfo.bobNote,
@@ -164,7 +138,6 @@ public final class WaypointRenderer {
         }
     }
 
-    /** Size of an item icon in text pixels. Items are 16 pixels, so they are shrunk to sit beside the text. */
     private static final int ICON = 10;
 
     private static ItemStack[] icons = null;
@@ -178,11 +151,7 @@ public final class WaypointRenderer {
         return icons[resource];
     }
 
-    //? if >= 26.2 {
     private static void drawLabel(GuiGraphicsExtractor g, Font font, Target t, float x, float y, float scale) {
-    //?} else {
-    /*private static void drawLabel(GuiGraphics g, Font font, Target t, float x, float y, float scale) {
-    *///?}
         MintConfig cfg = MintConfig.INSTANCE;
         int[] resourceRgb = {
                 cfg.ironColor.getRawArgb() & 0xFFFFFF,
@@ -192,7 +161,6 @@ public final class WaypointRenderer {
         };
         int marker = cfg.waypointMarker;
 
-        // The amount is in the chest's color when something marks the resource, and in the resource's color when nothing does
         int n = t.parts.size();
         Component[] counts = new Component[n];
         Component[] letters = new Component[n];
@@ -212,7 +180,6 @@ public final class WaypointRenderer {
             columnWidth = Math.max(columnWidth, cellWidth[i]);
         }
 
-        // Up to two per row. A row of two uses two columns of the same width, so a pair lines up with the row above it.
         List<List<WaypointLabel.Part>> rows = WaypointLabel.rows(t.parts);
         float halfStep = (columnWidth + font.width(" ")) / 2f;
 
@@ -222,7 +189,6 @@ public final class WaypointRenderer {
 
         for (int row = 0; row < rows.size(); row++) {
             List<WaypointLabel.Part> cells = rows.get(row);
-            // The last row is the bottom one and sits where a single row would. The others stack above it.
             int rowY = -(rows.size() - 1 - row) * (ICON + 2);
             for (int c = 0; c < cells.size(); c++) {
                 int i = t.parts.indexOf(cells.get(c));
@@ -250,7 +216,6 @@ public final class WaypointRenderer {
         g.pose().popMatrix();
     }
 
-    //? if >= 26.2 {
     private static void drawText(GuiGraphicsExtractor g, Font font, Component text, int x, int y, boolean shadow) {
         g.text(font, text, x, y, 0xFFFFFFFF, shadow);
     }
@@ -258,15 +223,6 @@ public final class WaypointRenderer {
     private static void drawItem(GuiGraphicsExtractor g, ItemStack stack) {
         g.item(stack, 0, 0);
     }
-    //?} else {
-    /*private static void drawText(GuiGraphics g, Font font, Component text, int x, int y, boolean shadow) {
-        g.drawString(font, text, x, y, 0xFFFFFFFF, shadow);
-    }
-
-    private static void drawItem(GuiGraphics g, ItemStack stack) {
-        g.renderItem(stack, 0, 0);
-    }
-    *///?}
 
     private static final class Target {
         final BlockPos pos;

@@ -16,7 +16,6 @@ import org.polyfrost.oneconfig.api.config.v1.annotations.Switch;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Text;
 
 public class MintConfig extends Config {
-
     public static final MintConfig INSTANCE = new MintConfig();
 
     @Checkbox(

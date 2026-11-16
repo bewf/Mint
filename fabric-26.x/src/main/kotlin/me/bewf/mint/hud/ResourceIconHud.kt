@@ -29,7 +29,6 @@ import org.polyfrost.oneconfig.api.hud.v1.HudAnchor
 import org.polyfrost.oneconfig.api.hud.v1.HudManager
 import org.polyfrost.oneconfig.api.ui.v1.item.PolyItemIcon
 
-/** Lets the Java side read the HUD's colours, so labels in the world match the HUD. */
 object HudColors {
     @JvmStatic
     var hud: ResourceIconHud? = null

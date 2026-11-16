@@ -19,15 +19,7 @@ import org.polyfrost.oneconfig.api.event.v1.events.TickEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Small floating labels above the team chest and the Ender Chest, showing what is inside.
- * <p>
- * This build has no hook inside the world render, so the labels are drawn flat on the screen just before
- * the frame is shown. The position comes from the same projection the Fabric build uses. Each piece of
- * OpenGL state the drawing changes is put back as it was, so the game does not notice.
- */
 public final class WaypointRenderer {
-
     private WaypointRenderer() {
     }
 
@@ -59,10 +51,8 @@ public final class WaypointRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.world == null) return;
         if (mc.screen != null || mc.options.hideGui) return;
-        // The projection assumes the camera sits at the player's eyes
         if (mc.options.perspective != 0) return;
 
-        // How far into the current tick we are, so the labels move smoothly between ticks
         double partial = Math.max(0.0, Math.min(1.0, (System.nanoTime() - tickStartNanos) / 50000000.0));
         double ex = mc.player.prevX + (mc.player.x - mc.player.prevX) * partial;
         double ey = mc.player.prevY + (mc.player.y - mc.player.prevY) * partial + mc.player.getEyeHeight();
@@ -99,7 +89,6 @@ public final class WaypointRenderer {
         targets.add(new Target(ResourceTracker.homeChest(), team, hudRgb(true)));
         targets.add(new Target(ResourceTracker.homeEnderChest(), ender, hudRgb(false)));
         if (ender != null) {
-            // Every Ender Chest close by opens the same inventory, so it gets the same label
             for (BlockPos near : ResourceTracker.nearbyEnderChests()) {
                 if (!near.equals(ResourceTracker.homeEnderChest())) targets.add(new Target(near, ender, hudRgb(false)));
             }
@@ -121,7 +110,6 @@ public final class WaypointRenderer {
             for (Target t : targets) {
                 if (t.pos == null || t.parts == null || t.parts.isEmpty()) continue;
 
-                // Just above the top of the chest, in the middle
                 double[] p = Projection.project(ex, ey, ez, yaw, pitch, fov, width, height,
                         t.pos.getX() + 0.5, t.pos.getY() + WaypointLabel.HEIGHT_ABOVE_CHEST, t.pos.getZ() + 0.5);
                 if (p == null || p[2] > cfg.waypointMaxDistance) continue;
@@ -135,11 +123,8 @@ public final class WaypointRenderer {
         }
     }
 
-    /** Size of an icon in text pixels. */
     private static final int ICON = 10;
 
-    // Small hand drawn icons, because this build has no safe way to draw the game's own items.
-    // o is the outline, h a highlight, b the body and s a shade.
     private static final String[] INGOT = {
             "........",
             "..ooooo.",
@@ -172,7 +157,6 @@ public final class WaypointRenderer {
     };
     private static final String[][] SHAPES = {INGOT, INGOT, GEM, OCTAGON};
 
-    // outline, highlight, body, shade for iron, gold, diamond and emerald
     private static final int[][] PALETTE = {
             {0x5C5C5C, 0xFFFFFF, 0xD0D0D0, 0x9A9A9A},
             {0x8A5A00, 0xFFF6B0, 0xFFC71F, 0xD08A00},
@@ -206,7 +190,6 @@ public final class WaypointRenderer {
             columnWidth = Math.max(columnWidth, cellWidth[i]);
         }
 
-        // Up to two per row. A row of two uses two columns of the same width, so a pair lines up with the row above it.
         List<List<WaypointLabel.Part>> rows = WaypointLabel.rows(t.parts);
         float halfStep = (columnWidth + mc.textRenderer.getWidth(" ")) / 2f;
 
@@ -217,14 +200,12 @@ public final class WaypointRenderer {
         boolean shadow = cfg.waypointShadow;
         for (int row = 0; row < rows.size(); row++) {
             List<WaypointLabel.Part> cells = rows.get(row);
-            // The last row is the bottom one and sits where a single row would. The others stack above it.
             float rowY = -(rows.size() - 1 - row) * (ICON + 2);
             for (int c = 0; c < cells.size(); c++) {
                 WaypointLabel.Part part = cells.get(c);
                 float center = cells.size() == 1 ? 0f : (c == 0 ? -halfStep : halfStep);
                 float cursor = Math.round(center - cellWidth[t.parts.indexOf(part)] / 2f);
 
-                // The amount is in the chest's color when something marks the resource, and in the resource's color when nothing does
                 int countRgb = marker == WaypointLabel.MARKER_NONE ? resourceRgb[part.resource] : t.countRgb;
                 mc.textRenderer.draw(part.count, cursor, rowY - 9f, 0xFF000000 | countRgb, shadow);
                 cursor += mc.textRenderer.getWidth(part.count);
@@ -240,7 +221,6 @@ public final class WaypointRenderer {
         GL11.glPopMatrix();
     }
 
-    /** Draws one icon from its pixels. The current color is put back afterwards, so the text after it is not tinted. */
     private static void drawIcon(float x, float y, int resource, boolean shadow) {
         COLOR.clear();
         GL11.glGetFloat(GL11.GL_CURRENT_COLOR, COLOR);
@@ -279,7 +259,6 @@ public final class WaypointRenderer {
         GL11.glColor4f(r, g, b, a);
     }
 
-    /** The team chest or Ender Chest colour picked in the HUD settings, or the default when the HUD is not there. */
     private static int hudRgb(boolean team) {
         try {
             if (MintClient.hud() != null) {
@@ -302,7 +281,6 @@ public final class WaypointRenderer {
         }
     }
 
-    /** Sets up flat drawing in screen pixels and remembers what to put back afterwards. */
     private static final class GlState {
         private boolean depth;
         private boolean lighting;

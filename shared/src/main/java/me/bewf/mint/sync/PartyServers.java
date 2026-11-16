@@ -1,23 +1,11 @@
 package me.bewf.mint.sync;
 
-/**
- * Which servers the team chest update may be sent on, and the command that sends a party chat message
- * there. The player lists them in the settings. Hypixel is filled in as the first one.
- */
 public final class PartyServers {
-
     private PartyServers() {
     }
 
-    /** How many servers the settings have room for. */
     public static final int SLOTS = 4;
 
-    /**
-     * @param address   the address of the server the player is on
-     * @param addresses the listed server addresses
-     * @param commands  the party command for each listed server, in the same order
-     * @return the command to use here without its slash, or null when this server is not listed
-     */
     public static String commandFor(String address, String[] addresses, String[] commands) {
         String host = host(address);
         if (host.isEmpty()) return null;
@@ -30,7 +18,6 @@ public final class PartyServers {
         return null;
     }
 
-    /** Lower case, without a scheme, a port, a path or a trailing dot. */
     public static String host(String address) {
         if (address == null) return "";
         String h = address.trim().toLowerCase();
@@ -44,7 +31,6 @@ public final class PartyServers {
         return h;
     }
 
-    /** The command without its leading slash, or null when it is empty or has a line break. */
     public static String command(String raw) {
         if (raw == null) return null;
         String c = raw.trim();
@@ -54,7 +40,6 @@ public final class PartyServers {
         return c;
     }
 
-    /** True for Hypixel, the one server where the party can be checked with {@code /party list}. */
     public static boolean isHypixel(String address) {
         String host = host(address);
         return host.equals("hypixel.net") || host.endsWith(".hypixel.net");

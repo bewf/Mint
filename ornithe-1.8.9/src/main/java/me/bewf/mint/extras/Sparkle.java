@@ -20,13 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * A few names get a colour and a title in chat. This build only changes chat. Names over heads and in
- * the tab list need hooks this build does not have. Minecraft 1.8.9 only has sixteen chat colours, so
- * each colour is the closest of those.
- */
 public final class Sparkle {
-
     private Sparkle() {
     }
 
@@ -45,7 +39,6 @@ public final class Sparkle {
 
     private static final Map<UUID, Look> PLAYERS = new HashMap<UUID, Look>();
 
-    // Matched by name in text, and refreshed from the UUIDs above so renamed accounts keep working
     private static final Map<String, Look> NAMES = new ConcurrentHashMap<String, Look>();
 
     static {
@@ -75,7 +68,6 @@ public final class Sparkle {
             if (alt.length() > 0) alt.append('|');
             alt.append(Pattern.quote(n));
         }
-        // A name may follow a colour code such as the section sign and a 7, which are letters and digits to the matcher
         namePattern = Pattern.compile(
                 "(?:(?<![A-Za-z0-9_])|(?<=§[0-9a-fk-orA-FK-OR]))(" + alt + ")(?![A-Za-z0-9_])",
                 Pattern.CASE_INSENSITIVE);
@@ -86,7 +78,6 @@ public final class Sparkle {
         startNameLookup();
     }
 
-    /** Resolves the current name of each listed UUID so renamed accounts keep working. */
     private static void startNameLookup() {
         Thread t = new Thread(new Runnable() {
             @Override
@@ -133,7 +124,6 @@ public final class Sparkle {
         String flat = flatBuilder.toString();
         if (!namePattern.matcher(flat).find()) return message;
 
-        // Text after the first colon is message body, so only the sender is changed
         int limit = Integer.MAX_VALUE;
         int colon = flat.indexOf(':');
         if (colon >= 0 && !LIST_HEADER.matcher(flat.substring(0, colon)).find()) limit = colon;
@@ -143,7 +133,6 @@ public final class Sparkle {
         return changed[0] ? out : message;
     }
 
-    /** The text of one component on its own, without its children. */
     private static String ownText(Component c) {
         if (c instanceof TextComponent) return ((TextComponent) c).content();
         return Platform.i18n().getUnformattedText(c.children(Collections.<Component>emptyList()));
@@ -169,7 +158,6 @@ public final class Sparkle {
         return node.children(children);
     }
 
-    /** Cuts a piece of text around the names in it. The pieces inherit the style of the original. */
     private static Component split(String text, Style style, String flat, int limit, int start, boolean[] changed) {
         Matcher m = namePattern.matcher(text);
         int last = 0;
@@ -191,10 +179,6 @@ public final class Sparkle {
         return Component.text("", style).children(parts);
     }
 
-    /**
-     * True when the text before a name already ends with the title, so another mod (or an earlier pass)
-     * has added it. Colour codes, spacing and capital letters are ignored when comparing.
-     */
     private static boolean endsWithTitle(String before, String prefix) {
         String b = before.replaceAll("§.", "").replace(' ', ' ').replaceAll("\\s+", " ").trim().toLowerCase();
         String p = prefix.replace(' ', ' ').replaceAll("\\s+", " ").trim().toLowerCase();

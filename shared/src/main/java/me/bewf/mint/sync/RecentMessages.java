@@ -4,12 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Remembers the party messages we sent ourselves. The server sends them back to us, and that echo
- * must not be counted a second time because the chest change is already in our own numbers.
- */
 public final class RecentMessages {
-
     private static final class Entry {
         final String body;
         final long at;
@@ -32,7 +27,6 @@ public final class RecentMessages {
         sent.add(new Entry(body, now));
     }
 
-    /** True if this exact text was remembered recently. Nothing is used up. */
     public boolean has(String body, long now) {
         prune(now);
         for (Entry e : sent) {
@@ -41,7 +35,6 @@ public final class RecentMessages {
         return false;
     }
 
-    /** True once for each remembered message, so the echo is dropped and later identical text from someone else is not. */
     public boolean consumeIfOurs(String body, long now) {
         prune(now);
         for (Iterator<Entry> it = sent.iterator(); it.hasNext(); ) {

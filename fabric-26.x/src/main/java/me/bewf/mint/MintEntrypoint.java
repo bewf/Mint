@@ -12,10 +12,8 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import org.polyfrost.oneconfig.api.hud.v1.HudManager;
 
 public class MintEntrypoint implements ClientModInitializer {
-
     @Override
     public void onInitializeClient() {
-
         MintConfig.INSTANCE.preload();
 
         HudManager.INSTANCE.register(new ResourceIconHud(), MintConstants.ID, "assets/mint/minticon.png");

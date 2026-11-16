@@ -46,15 +46,10 @@ public class ResourceTracker {
     public static int teamChestDiamond = 0;
     public static int teamChestEmerald = 0;
 
-    // What this player believes the team chest holds. Looks at the chest are the truth, updates from
-    // teammates move the numbers in between. The public team chest fields above mirror it.
     private static final TeamChestLedger ledger = new TeamChestLedger();
     private static boolean homeGuiOpen = false;
-    // Inventory when the team chest was opened or last changed, to see what this player put in or took out
     private static Counts guiInvCheckpoint = null;
 
-    // The chest the team chest numbers belong to. It is found by looking around the spawn point when
-    // the game starts, so opening a chest in an enemy base cannot replace it.
     private static BlockPos homeChestPos = null;
     private static BlockPos enderChestPos = null;
     private static BlockPos lastChestPos = null;
@@ -63,7 +58,6 @@ public class ResourceTracker {
 
     private static BlockPos spawnPos = null;
     private static double spawnYaw = 0.0;
-    // True once the sidebar or the start message says the game is running
     private static boolean gameStartSeen = false;
     private static int spawnCaptureCountdown = -1;
     private static int scanTicksLeft = 0;
@@ -87,15 +81,12 @@ public class ResourceTracker {
     private static boolean wasEnderGui = false;
     private static int enderGuiWarmup = 0;
 
-    // The server sends the contents of a chest a moment after the window opens. Until something shows up
-    // (or a second has passed) an empty window is not read as an empty chest.
     private static final int LOAD_WAIT_TICKS = 20;
     private static int enderOpenTicks = 0;
     private static boolean enderLoaded = false;
     private static int teamOpenTicks = 0;
     private static boolean teamLoaded = false;
 
-    // The sidebar can go missing for a moment, so the numbers are only wiped after it has been gone a while
     private static final int INACTIVE_RESET_TICKS = 200;
     private static int inactiveTicks = 0;
 
@@ -103,8 +94,6 @@ public class ResourceTracker {
     private static boolean wasTeamGui = false;
     private static int teamChestGuiWarmup = 0;
 
-    // Chests other than the home team chest. Each keeps its own contents, from looking inside it or from
-    // the total the server reports after a punch deposit. They only feed the waypoints, never the HUD.
     public static final class OtherChest {
         public final BlockPos pos;
         public final int[] counts = new int[4];
@@ -116,10 +105,8 @@ public class ResourceTracker {
 
     private static final List<OtherChest> otherChests = new ArrayList<OtherChest>();
 
-    // Every Ender Chest close to the player. They all open the same inventory, so each one gets the same label.
     public static final int NEARBY_ENDER_BLOCKS = 10;
     private static final int NEARBY_SCAN_TICKS = 10;
-    // Chests this close are certainly loaded, so a missing block there means the chest is gone
     private static final int PRUNE_BLOCKS = 24;
     private static List<BlockPos> nearbyEnders = new ArrayList<BlockPos>();
     private static int nearbyScanTicks = 0;
@@ -149,12 +136,10 @@ public class ResourceTracker {
         return active;
     }
 
-    /** Where the team chest is, or null when it is not known yet. */
     public static BlockPos homeChest() {
         return homeChestPos;
     }
 
-    /** Where the Ender Chest is, or null when it is not known yet. */
     public static BlockPos homeEnderChest() {
         return enderChestPos;
     }
@@ -184,7 +169,6 @@ public class ResourceTracker {
 
         if (block == Blocks.ENDER_CHEST) {
             ticksSinceEnderTouch = 0;
-            // Hypixel only sends the item in hand. Some servers send every material on a punch.
             startEnderDeposit(mc, mc.player.getItemInHand(), punch && !BedwarsDetector.onHypixel());
         } else if (block == Blocks.CHEST) {
             lastChestPos = hit.getPos();
@@ -195,7 +179,6 @@ public class ResourceTracker {
 
     private static final Item[] TRACKED_ITEMS = {Items.IRON_INGOT, Items.GOLD_INGOT, Items.DIAMOND, Items.EMERALD};
 
-    /** Remembers how much of each sent material the player has, so the drop after the server takes it is counted. */
     private static void startEnderDeposit(Minecraft mc, ItemStack held, boolean everyMaterial) {
         for (Item item : TRACKED_ITEMS) {
             if (!everyMaterial && (held == null || held.getItem() != item)) continue;
@@ -213,7 +196,6 @@ public class ResourceTracker {
         }
     }
 
-    /** "Chest now holds: 20 Iron Ingots, 2 Golden Ingots." The line lists what the clicked chest contains. */
     private static void onChestHoldings(int[] holds) {
         long now = System.currentTimeMillis();
 
@@ -259,7 +241,6 @@ public class ResourceTracker {
             return;
         }
 
-        // Players are sent to their bases when the game starts. Read the spawn a moment later.
         if (msg.contains("Protect your bed and destroy the enemy beds")) {
             gameStartSeen = true;
             spawnCaptureCountdown = 20;
@@ -268,7 +249,6 @@ public class ResourceTracker {
         if (teamChestInteractionWarmup > 0 && msg.contains("Team Chest")) {
             Matcher totalMatcher = TOTAL_NUMBER_PATTERN.matcher(msg);
             if (totalMatcher.find()) {
-                // A deposit line keeps the window open, so a second quick punch is read as well
                 teamChestInteractionWarmup = TeamChestMessage.depositAmount(msg) > 0 ? 40 : 0;
 
                 confirmHomeFromServer();
@@ -276,7 +256,6 @@ public class ResourceTracker {
                 int total = Integer.parseInt(totalMatcher.group(1));
                 long now = System.currentTimeMillis();
 
-                // Search the entire message for material names
                 int resource = -1;
                 if (MATERIAL_PATTERNS[0].matcher(msg).find()) resource = Delta.IRON;
                 else if (MATERIAL_PATTERNS[1].matcher(msg).find()) resource = Delta.GOLD;
@@ -284,8 +263,6 @@ public class ResourceTracker {
                 else if (MATERIAL_PATTERNS[3].matcher(msg).find()) resource = Delta.EMERALD;
                 if (resource < 0) return;
 
-                // A deposit into some other chest reports that chest's total, which must not
-                // replace the numbers of the home team chest. It only feeds that chest's waypoint.
                 if (!acceptTeamChest(lastChestPos)) {
                     rememberOtherTotal(lastChestPos, resource, total);
                     return;
@@ -297,7 +274,6 @@ public class ResourceTracker {
                 else teamChestEmerald = total;
                 ledger.total(resource, total, now);
 
-                // A punch deposit is a change the rest of the party wants to hear about
                 int deposited = TeamChestMessage.depositAmount(msg);
                 if (deposited > 0) {
                     Delta change = new Delta();
@@ -308,8 +284,6 @@ public class ResourceTracker {
         }
     }
 
-    /** A teammate changed the team chest and told the party. */
-    /** Returns null when the update was applied, otherwise the reason it was ignored. */
     static String applyTeammateUpdate(Delta change) {
         long now = System.currentTimeMillis();
         if (homeGuiOpen) return "you have the team chest open";
@@ -322,7 +296,6 @@ public class ResourceTracker {
         return null;
     }
 
-    /** Works out what this player put into or took out of the open team chest from their own inventory. */
     private static void trackOwnChanges(Counts invNow) {
         if (guiInvCheckpoint == null) {
             guiInvCheckpoint = copyOf(invNow);
@@ -348,12 +321,10 @@ public class ResourceTracker {
         return out;
     }
 
-    /** Ender Chests within {@link #NEARBY_ENDER_BLOCKS} blocks of the player. */
     public static List<BlockPos> nearbyEnderChests() {
         return nearbyEnders;
     }
 
-    /** Chests other than the home team chest that were opened or deposited into, with what they held. */
     public static List<OtherChest> otherChests() {
         return otherChests;
     }
@@ -381,7 +352,6 @@ public class ResourceTracker {
         otherChestAt(pos).counts[resource] = total;
     }
 
-    /** Finds Ender Chests around the player and forgets other chests that were broken. */
     private static void scanSurroundings(Minecraft mc, BlockPos here) {
         List<BlockPos> found = new ArrayList<BlockPos>();
         int r = NEARBY_ENDER_BLOCKS;
@@ -411,11 +381,6 @@ public class ResourceTracker {
                 && Math.abs(a.getX() - b.getX()) + Math.abs(a.getY() - b.getY()) + Math.abs(a.getZ() - b.getZ()) <= 1;
     }
 
-    /**
-     * True when the chest at pos is the home team chest. The home chest is found by looking around
-     * the spawn point. When that found nothing, the first chest touched close to the spawn is used.
-     * A double chest has two positions next to each other, so neighbours match too.
-     */
     private static boolean acceptTeamChest(BlockPos pos) {
         if (pos == null) return true;
         if (homeChestPos != null) {
@@ -446,7 +411,6 @@ public class ResourceTracker {
                 && Math.abs(pos.getY() - spawnPos.getY()) <= ChestPicker.MAX_VERTICAL + 2;
     }
 
-    /** "Deposited ... into Team Chest" right after punching a chest means the server itself calls that chest the team chest. */
     private static void confirmHomeFromServer() {
         if (lastChestPos == null || ticksSinceChestTouch > 40) return;
         if (homeChestPos != null && sameChest(lastChestPos, homeChestPos)) {
@@ -459,9 +423,7 @@ public class ResourceTracker {
         System.out.println("[Mint] Team chest confirmed by the server");
     }
 
-    /** Reads the spawn point when the game starts and searches around it for the team chest and Ender Chest. */
     private static void updateHomeChests(Minecraft mc) {
-        // Team chest search is for Hypixel only. Other servers keep the first chest touched.
         if (!BedwarsDetector.onHypixel()) return;
         if (!gameStartSeen && BedwarsDetector.hasOwnTeamLine()) {
             gameStartSeen = true;
@@ -472,7 +434,6 @@ public class ResourceTracker {
         if (pos == null) return;
         BlockPos here = new BlockPos((int) Math.floor(pos[0]), (int) Math.floor(pos[1]), (int) Math.floor(pos[2]));
 
-        // A jump of many blocks in one tick is a teleport, such as lobby to base
         if (lastTickPos != null && homeChestPos == null && spawnCaptureCountdown < 0 && gameStartSeen
                 && Math.abs(here.getX() - lastTickPos.getX()) + Math.abs(here.getZ() - lastTickPos.getZ()) > TELEPORT_BLOCKS) {
             spawnCaptureCountdown = 20;
@@ -573,7 +534,6 @@ public class ResourceTracker {
             enderGuiWarmup = 2;
             enderOpenTicks = 0;
             enderLoaded = false;
-            // The open chest is the real source of truth, so drop unconfirmed deposits
             pendingDeposits.clear();
         }
 
@@ -602,7 +562,6 @@ public class ResourceTracker {
 
         boolean inTeamChestGui = isTeamChestGuiOpen(mc);
         if (inTeamChestGui && !wasTeamGui) {
-            // Give the server a moment to send the chest contents before reading them
             teamChestGuiWarmup = 2;
             teamOpenTicks = 0;
             teamLoaded = false;
@@ -628,7 +587,6 @@ public class ResourceTracker {
             homeGuiOpen = true;
             trackOwnChanges(invNow);
         } else if (inTeamChestGui && teamLoaded && lastChestPos != null) {
-            // Some other chest: remembered for its own waypoint only
             rememberOtherChest(lastChestPos, teamCounts);
             homeGuiOpen = false;
         } else {
@@ -646,7 +604,6 @@ public class ResourceTracker {
         if (!inTeamChestGui) {
             homeGuiOpen = false;
             if (wasTeamGui && guiInvCheckpoint != null) {
-                // The chest just closed: count the last change and send what is waiting
                 trackOwnChanges(invNow);
                 TeamChestSync.flush();
             }
@@ -663,7 +620,6 @@ public class ResourceTracker {
         while (it.hasNext()) {
             PendingDeposit pd = it.next();
 
-            // The click did not deposit anything (chest full, wrong item, etc.)
             if (++pd.age > 40) {
                 it.remove();
                 continue;
@@ -705,8 +661,6 @@ public class ResourceTracker {
         return StringUtils.stripFormatting(name).toLowerCase().replace(" ", "");
     }
 
-    // A language pack can rename the chest windows ("Ender coffer"), so the block the player clicked
-    // decides when the title is no help. A window opens within a second or two of the click.
     private static final int OPEN_WINDOW_TICKS = 40;
 
     private static boolean openedEnderBlock() {
@@ -721,8 +675,8 @@ public class ResourceTracker {
     private static Object enderMenu = null;
     private static Object teamMenu = null;
 
-    // Decided once when a window opens, so it still counts after the 40 ticks are over
     private static void updateWindowLatch(Minecraft mc) {
+        // A language pack can rename the window, so the click decides, once, when the window opens
         Object menu = mc.player.menu instanceof ChestMenu ? mc.player.menu : null;
         if (menu == lastMenu) return;
         lastMenu = menu;
@@ -746,7 +700,6 @@ public class ResourceTracker {
         return mc.player.menu == teamMenu;
     }
 
-    /** True when any slot of the open chest window holds an item, so the server has sent its contents. */
     private static boolean chestHasItems(Minecraft mc) {
         Inventory lower = openChestInventory(mc);
         if (lower == null) return false;

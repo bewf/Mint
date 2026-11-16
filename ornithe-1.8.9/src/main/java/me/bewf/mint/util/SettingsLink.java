@@ -4,12 +4,7 @@ import me.bewf.mint.MintConstants;
 
 import java.lang.reflect.Method;
 
-/**
- * Opens the OneConfig menu on Mint's page. Looked up by name so an older OneConfig that lacks the
- * page API just opens the main menu instead of failing.
- */
 public final class SettingsLink {
-
     private SettingsLink() {
     }
 

@@ -1,17 +1,6 @@
 package me.bewf.mint.sync;
 
-/**
- * Collects team chest changes and hands them out in one go, so a burst of punch deposits becomes a
- * single party message instead of one per punch.
- * <p>
- * With the two argument constructor the window starts at the first change and is fixed. With the
- * three argument one the message goes out once nothing new has been added for {@code quietMs}, but
- * never later than {@code maxMs} after the first change, so punches a second apart still become one
- * message. Opposite changes cancel out and send nothing. A minimum gap between two messages keeps
- * the chat rate low however fast the player works.
- */
 public final class ChestBuffer {
-
     private final long windowMs;
     private final long quietMs;
     private final long minGapMs;
@@ -41,7 +30,6 @@ public final class ChestBuffer {
         pending.addAll(d);
     }
 
-    /** Asks for the pending changes to go out as soon as the minimum gap allows. */
     public void requestFlush() {
         if (firstMs >= 0) flushRequested = true;
     }
@@ -50,9 +38,9 @@ public final class ChestBuffer {
         return firstMs >= 0;
     }
 
-    /** Returns the changes to send now, or null when it is not time yet or everything cancelled out. */
     public Delta poll(long now) {
         if (firstMs < 0) return null;
+        // Goes out after a quiet gap, or after windowMs at the latest so a long run of deposits still sends
         boolean windowOver = now - firstMs >= windowMs
                 || (quietMs != Long.MAX_VALUE && now - lastAddMs >= quietMs);
         if (!windowOver && !flushRequested) return null;

@@ -13,7 +13,6 @@ import org.polyfrost.oneconfig.api.hud.v1.HudManager;
 public class MintClient implements ClientModInitializer {
     private static ResourceIconHud hud;
 
-    /** The HUD, for the colours picked in its settings. Null until the mod has started. */
     public static ResourceIconHud hud() {
         return hud;
     }

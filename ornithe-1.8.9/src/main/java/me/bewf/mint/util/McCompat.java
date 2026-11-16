@@ -36,7 +36,6 @@ final class McCompat {
         }
     }
 
-    /** {x, y, z, yaw} of the player, or null when there is none. */
     static double[] playerPos() {
         try {
             Minecraft mc = Minecraft.getInstance();
@@ -47,7 +46,6 @@ final class McCompat {
         }
     }
 
-    /** Sends a chat line or command as the player. */
     static boolean sendChat(String message) {
         try {
             Minecraft mc = Minecraft.getInstance();
@@ -70,7 +68,6 @@ final class McCompat {
         }
     }
 
-    /** The scoreboard team of a player name, or null when unknown. */
     static Object teamOf(String playerName) {
         try {
             Minecraft mc = Minecraft.getInstance();
@@ -81,7 +78,6 @@ final class McCompat {
         }
     }
 
-    /** The text a scoreboard team puts in front of its players' names, without colour codes. Empty when unknown. */
     static String teamPrefix(Object team) {
         try {
             for (Method m : team.getClass().getMethods()) {

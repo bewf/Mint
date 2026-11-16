@@ -1,8 +1,6 @@
 package me.bewf.mint.sync;
 
-/** Number formatting shared by the labels, matching the HUD's compact numbers. */
 public final class Numbers {
-
     private Numbers() {
     }
 
