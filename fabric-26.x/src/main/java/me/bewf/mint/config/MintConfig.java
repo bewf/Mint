@@ -10,6 +10,7 @@ import org.polyfrost.oneconfig.api.config.v1.annotations.Checkbox;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Color;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Dropdown;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Include;
+import org.polyfrost.oneconfig.api.config.v1.annotations.Info;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Slider;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Switch;
 import org.polyfrost.oneconfig.api.config.v1.annotations.Text;
@@ -17,6 +18,14 @@ import org.polyfrost.oneconfig.api.config.v1.annotations.Text;
 public class MintConfig extends Config {
 
     public static final MintConfig INSTANCE = new MintConfig();
+
+    @Checkbox(
+            title = "Update Checker",
+            description = "Show update notification when joining the game.",
+            category = "General",
+            subcategory = "Updates"
+    )
+    public boolean updateCheckerEnabled = true;
 
     @Button(
             title = "Want to edit the HUD?",
@@ -32,6 +41,14 @@ public class MintConfig extends Config {
             RuntimeInfo.sendChatMessage(RuntimeInfo.PREFIX_AQUA + "[Mint] " + RuntimeInfo.GOLD + "Open the HUD editor with Edit HUD in the OneConfig sidebar.");
         }
     }
+
+    @Info(
+            title = "Warning",
+            description = "This feature is use at your own risk",
+            category = "Party Sync",
+            subcategory = "Party Sync"
+    )
+    public String partySyncWarning = "";
 
     @Switch(
             title = "Share Team Chest In Party Chat",
@@ -281,18 +298,10 @@ public class MintConfig extends Config {
     )
     public boolean fancyTabList = true;
 
-    @Checkbox(
-            title = "Update Checker",
-            description = "Show update notification when joining the game.",
-            category = "Debug",
-            subcategory = "Updates"
-    )
-    public boolean updateCheckerEnabled = true;
-
     @Button(
             title = "Manual Check",
             text = "Check for Updates",
-            category = "Debug",
+            category = "General",
             subcategory = "Updates"
     )
     private void manualUpdateCheck() {
