@@ -78,6 +78,42 @@ public final class Sparkle {
         startNameLookup();
     }
 
+    private static final int[] LEGACY_RGB = {
+            0x000000, 0x0000AA, 0x00AA00, 0x00AAAA, 0xAA0000, 0xAA00AA, 0xFFAA00, 0xAAAAAA,
+            0x555555, 0x5555FF, 0x55FF55, 0x55FFFF, 0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF};
+
+    private static char legacyCode(int rgb) {
+        int best = 15;
+        long bestDistance = Long.MAX_VALUE;
+        for (int i = 0; i < LEGACY_RGB.length; i++) {
+            long dr = ((LEGACY_RGB[i] >> 16) & 255) - ((rgb >> 16) & 255);
+            long dg = ((LEGACY_RGB[i] >> 8) & 255) - ((rgb >> 8) & 255);
+            long db = (LEGACY_RGB[i] & 255) - (rgb & 255);
+            long d = dr * dr + dg * dg + db * db;
+            if (d < bestDistance) {
+                bestDistance = d;
+                best = i;
+            }
+        }
+        return "0123456789abcdef".charAt(best);
+    }
+
+    // Tab list lines are plain strings with colour codes on 1.8.9, so the name is swapped inside the line
+    public static String tabName(UUID id, String playerName, String line) {
+        if (playerName == null || line == null) return line;
+        Look look = id == null ? null : PLAYERS.get(id);
+        if (look == null) look = NAMES.get(playerName.toLowerCase());
+        if (look == null) return line;
+        if (line.replaceAll("\u00A7.", "").toLowerCase().contains((look.prefix + playerName).toLowerCase())) return line;
+
+        String styled = "\u00A7" + legacyCode(look.base) + look.prefix + playerName + "\u00A7r";
+        Matcher m = Pattern.compile(
+                "(?:(?<![A-Za-z0-9_])|(?<=\u00A7[0-9a-fk-orA-FK-OR]))" + Pattern.quote(playerName) + "(?![A-Za-z0-9_])",
+                Pattern.CASE_INSENSITIVE).matcher(line);
+        if (m.find()) return line.substring(0, m.start()) + styled + line.substring(m.end());
+        return styled;
+    }
+
     private static void startNameLookup() {
         Thread t = new Thread(new Runnable() {
             @Override

@@ -84,6 +84,8 @@ public class ResourceTracker {
     private static final int LOAD_WAIT_TICKS = 20;
     private static int enderOpenTicks = 0;
     private static boolean enderLoaded = false;
+
+    public static String debugChest = "no tick yet";
     private static int teamOpenTicks = 0;
     private static boolean teamLoaded = false;
 
@@ -559,6 +561,14 @@ public class ResourceTracker {
         emeEc = lastEmeBase;
 
         wasEnderGui = inEnderGui;
+
+        if (MintConfig.INSTANCE.waypointDebug) {
+            String title = openChestTitle(mc);
+            debugChest = "chest window: " + (title == null ? "none" : "\"" + title + "\"")
+                    + ", ender " + inEnderGui + " (loaded " + enderLoaded + "), team " + isTeamChestGuiOpen(mc)
+                    + " (loaded " + teamLoaded + "), ender i" + lastIronBase + " g" + lastGoldBase
+                    + " d" + lastDiaBase + " e" + lastEmeBase;
+        }
 
         boolean inTeamChestGui = isTeamChestGuiOpen(mc);
         if (inTeamChestGui && !wasTeamGui) {

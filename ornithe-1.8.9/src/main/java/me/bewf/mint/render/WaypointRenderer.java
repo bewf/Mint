@@ -8,6 +8,8 @@ import me.bewf.mint.util.BedwarsDetector;
 import me.bewf.mint.util.ResourceTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.render.Window;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.GL11;
@@ -107,6 +109,7 @@ public final class WaypointRenderer {
 
         GlState state = GlState.begin(width, height);
         try {
+            if (cfg.waypointDebug) drawDebug(mc, guiScale, fov, yaw, pitch);
             for (Target t : targets) {
                 if (t.pos == null || t.parts == null || t.parts.isEmpty()) continue;
 
@@ -123,46 +126,33 @@ public final class WaypointRenderer {
         }
     }
 
+    private static void drawDebug(Minecraft mc, int guiScale, double fov, double yaw, double pitch) {
+        String[] lines = {
+                String.format("Mint waypoints: fov %.1f, options fov %.1f", fov, mc.options.fov),
+                String.format("view yaw %.1f pitch %.1f, sprinting %b, sneaking %b", yaw, pitch, mc.player.isSprinting(), mc.player.isSneaking()),
+                ResourceTracker.debugChest,
+        };
+        GL11.glPushMatrix();
+        GL11.glTranslatef(4f * guiScale, 4f * guiScale, 0f);
+        GL11.glScalef(guiScale, guiScale, 1f);
+        for (int i = 0; i < lines.length; i++) {
+            mc.textRenderer.draw(lines[i], 0f, i * 10f, 0xFFFFFFFF, true);
+        }
+        GL11.glPopMatrix();
+    }
+
     private static final int ICON = 10;
 
-    private static final String[] INGOT = {
-            "........",
-            "..ooooo.",
-            ".ohhhhbo",
-            "obbbbbbo",
-            "obbbbbso",
-            ".ooooooo",
-            "........",
-            "........",
-    };
-    private static final String[] GEM = {
-            "........",
-            "..oooo..",
-            ".ohhhbo.",
-            "ohhbbbbo",
-            "obbbbbso",
-            ".obbbso.",
-            "..obso..",
-            "...oo...",
-    };
-    private static final String[] OCTAGON = {
-            "..oooo..",
-            ".ohhhbo.",
-            "ohhbbbbo",
-            "ohbbbbso",
-            "obbbbbso",
-            "obbbssso",
-            ".osssso.",
-            "..oooo..",
-    };
-    private static final String[][] SHAPES = {INGOT, INGOT, GEM, OCTAGON};
+    private static ItemStack[] icons = null;
 
-    private static final int[][] PALETTE = {
-            {0x5C5C5C, 0xFFFFFF, 0xD0D0D0, 0x9A9A9A},
-            {0x8A5A00, 0xFFF6B0, 0xFFC71F, 0xD08A00},
-            {0x137C86, 0xD5FFFB, 0x4DEBD6, 0x23B3B3},
-            {0x0A6B24, 0xC9FFD9, 0x2BE06A, 0x14A84A},
-    };
+    private static ItemStack icon(int resource) {
+        if (icons == null) {
+            icons = new ItemStack[]{
+                    new ItemStack(Items.IRON_INGOT), new ItemStack(Items.GOLD_INGOT),
+                    new ItemStack(Items.DIAMOND), new ItemStack(Items.EMERALD)};
+        }
+        return icons[resource];
+    }
 
     private static final java.nio.FloatBuffer COLOR = org.lwjgl.BufferUtils.createFloatBuffer(16);
 
@@ -211,7 +201,7 @@ public final class WaypointRenderer {
                 cursor += mc.textRenderer.getWidth(part.count);
                 if (marker == WaypointLabel.MARKER_ICON) {
                     cursor += 1;
-                    drawIcon(cursor, rowY - ICON, part.resource, shadow);
+                    drawIcon(mc, cursor, rowY - ICON, part.resource);
                 } else if (marker == WaypointLabel.MARKER_LETTER) {
                     mc.textRenderer.draw(String.valueOf(part.letter), cursor, rowY - 9f, 0xFF000000 | resourceRgb[part.resource], shadow);
                 }
@@ -221,7 +211,7 @@ public final class WaypointRenderer {
         GL11.glPopMatrix();
     }
 
-    private static void drawIcon(float x, float y, int resource, boolean shadow) {
+    private static void drawIcon(Minecraft mc, float x, float y, int resource) {
         COLOR.clear();
         GL11.glGetFloat(GL11.GL_CURRENT_COLOR, COLOR);
         float r = COLOR.get(0);
@@ -229,33 +219,14 @@ public final class WaypointRenderer {
         float b = COLOR.get(2);
         float a = COLOR.get(3);
 
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        String[] shape = SHAPES[resource];
-        float pixel = ICON / 8f;
-        for (int pass = shadow ? 0 : 1; pass < 2; pass++) {
-            float dx = pass == 0 ? 1f : 0f;
-            GL11.glBegin(GL11.GL_QUADS);
-            for (int row = 0; row < 8; row++) {
-                for (int col = 0; col < 8; col++) {
-                    int slot = "ohbs".indexOf(shape[row].charAt(col));
-                    if (slot < 0) continue;
-                    int rgb = PALETTE[resource][slot];
-                    if (pass == 0) {
-                        GL11.glColor4f(0f, 0f, 0f, 0.35f);
-                    } else {
-                        GL11.glColor4f(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, 1f);
-                    }
-                    float left = x + col * pixel + dx;
-                    float top = y + row * pixel + dx;
-                    GL11.glVertex2f(left, top);
-                    GL11.glVertex2f(left, top + pixel);
-                    GL11.glVertex2f(left + pixel, top + pixel);
-                    GL11.glVertex2f(left + pixel, top);
-                }
-            }
-            GL11.glEnd();
-        }
-        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glPushMatrix();
+        GL11.glTranslatef(x, y, 0f);
+        float size = ICON / 16f;
+        GL11.glScalef(size, size, 1f);
+        GL11.glColor4f(1f, 1f, 1f, 1f);
+        mc.getItemRenderer().renderGuiItem(icon(resource), 0, 0);
+        GL11.glPopMatrix();
+
         GL11.glColor4f(r, g, b, a);
     }
 

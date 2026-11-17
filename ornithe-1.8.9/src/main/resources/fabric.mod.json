@@ -15,6 +15,9 @@
 	"license": "LicenseRef-All-Rights-Reserved",
 	"icon": "assets/mint/minticon.png",
 	"environment": "client",
+	"mixins": [
+		"mint.mixins.json"
+	],
 	"entrypoints": {
 		"client": [
 			"me.bewf.mint.MintClient"

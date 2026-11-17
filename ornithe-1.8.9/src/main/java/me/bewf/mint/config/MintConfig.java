@@ -272,6 +272,13 @@ public class MintConfig extends Config {
     )
     public float waypointFovAdjust = 0f;
 
+    @Switch(
+            title = "Waypoint Debug",
+            description = "Shows in the top left what the waypoints read from the game: field of view, view angles and the chest window.",
+            category = "Debug"
+    )
+    public boolean waypointDebug = false;
+
     @Checkbox(
             title = "Always Show HUD",
             description = "Mainly for debugging. If this is required for the HUD to appear, please open an issue on GitHub.",
@@ -285,6 +292,13 @@ public class MintConfig extends Config {
             category = "Debug"
     )
     public boolean fancyNames = true;
+
+    @Checkbox(
+            title = "Sparkle Tab List",
+            description = "Gives a few names a colour and a title in the tab list.",
+            category = "Debug"
+    )
+    public boolean fancyTabList = true;
 
     @Button(
             title = "Manual Check",
